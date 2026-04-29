@@ -1,527 +1,163 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Медитация">
-<title>Медитация</title>
+<meta name="apple-mobile-web-app-title" content="Shama">
+<title>Shama</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Inter:wght@300;400&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
   :root {
-    --bg: #0d0f0e;
-    --bg2: #141714;
-    --bg3: #1a1e1a;
-    --surface: #1e231e;
-    --border: rgba(160,185,160,0.12);
-    --text: #d4dfd4;
-    --text2: #8a9e8a;
-    --text3: #5a6b5a;
-    --accent: #7aad7a;
-    --accent2: #a8c8a8;
-    --gold: #c8a96e;
-    --gold2: #e8c98e;
-    --danger: #c87a7a;
+    --bg: #0d0f0e; --surface: #1e231e; --border: rgba(160,185,160,0.12);
+    --text: #d4dfd4; --text2: #8a9e8a; --text3: #5a6b5a;
+    --accent: #7aad7a; --accent2: #a8c8a8; --danger: #c87a7a;
   }
-
-  html, body {
-    height: 100%;
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Inter', sans-serif;
-    font-weight: 300;
-    overflow: hidden;
-  }
-
-  /* Grain texture overlay */
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; font-weight: 300; overflow: hidden; }
   body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
+    content: ''; position: fixed; inset: 0;
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-    pointer-events: none;
-    z-index: 1000;
-    opacity: 0.6;
+    pointer-events: none; z-index: 1000; opacity: 0.6;
   }
 
-  #app {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
+  /* AUTH */
+  #auth-screen {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 32px; z-index: 500;
   }
+  #auth-screen.hidden { display: none; }
+  .auth-title { font-family: 'Cormorant Garamond', serif; font-size: 40px; font-weight: 300; font-style: italic; color: var(--text); margin-bottom: 6px; }
+  .auth-sub { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text3); margin-bottom: 40px; }
+  .auth-tabs { display: flex; width: 100%; max-width: 300px; border-bottom: 1px solid var(--border); margin-bottom: 24px; }
+  .auth-tab { flex: 1; background: none; border: none; color: var(--text3); font-family: 'Inter', sans-serif; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; padding: 8px; cursor: pointer; border-bottom: 1px solid transparent; margin-bottom: -1px; transition: color 0.2s; }
+  .auth-tab.active { color: var(--accent2); border-bottom-color: var(--accent); }
+  .auth-form { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 300px; }
+  .auth-input { background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 300; padding: 12px 16px; border-radius: 8px; outline: none; transition: border-color 0.2s; }
+  .auth-input:focus { border-color: rgba(122,173,122,0.4); }
+  .auth-input::placeholder { color: var(--text3); }
+  .auth-btn { background: rgba(122,173,122,0.12); border: 1px solid rgba(122,173,122,0.3); color: var(--accent2); font-family: 'Inter', sans-serif; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; padding: 12px; border-radius: 8px; cursor: pointer; transition: all 0.2s; margin-top: 4px; }
+  .auth-btn:hover { background: rgba(122,173,122,0.2); }
+  .auth-error { font-size: 12px; color: var(--danger); text-align: center; min-height: 18px; }
+  .auth-guest { margin-top: 24px; background: none; border: none; color: var(--text3); font-family: 'Inter', sans-serif; font-size: 11px; letter-spacing: 0.06em; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+  .auth-guest:hover { color: var(--text2); }
 
-  /* NAV */
-  nav {
-    display: flex;
-    justify-content: center;
-    gap: 0;
-    padding: 16px 24px 0;
-    position: relative;
-  }
+  /* APP */
+  #app { height: 100%; display: flex; flex-direction: column; }
+  nav { display: flex; justify-content: center; padding: 16px 24px 0; position: relative; align-items: center; }
+  .nav-btn { background: none; border: none; color: var(--text3); font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 400; letter-spacing: 0.12em; text-transform: uppercase; padding: 8px 20px; cursor: pointer; transition: color 0.3s; border-bottom: 1px solid transparent; }
+  .nav-btn.active { color: var(--accent2); border-bottom-color: var(--accent); }
+  .nav-user { position: absolute; right: 16px; top: 14px; background: none; border: 1px solid var(--border); color: var(--text3); font-size: 10px; letter-spacing: 0.06em; padding: 5px 10px; border-radius: 12px; cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.2s; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nav-user:hover { color: var(--danger); border-color: rgba(200,122,122,0.3); }
 
-  .nav-btn {
-    background: none;
-    border: none;
-    color: var(--text3);
-    font-family: 'Inter', sans-serif;
-    font-size: 11px;
-    font-weight: 400;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    padding: 8px 20px;
-    cursor: pointer;
-    transition: color 0.3s;
-    border-bottom: 1px solid transparent;
-  }
-
-  .nav-btn.active {
-    color: var(--accent2);
-    border-bottom-color: var(--accent);
-  }
-
-  /* SCREENS */
-  .screen {
-    display: none;
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
-  }
+  .screen { display: none; flex: 1; overflow-y: auto; overflow-x: hidden; }
   .screen.active { display: flex; flex-direction: column; }
 
-  /* ─── TIMER SCREEN ─── */
-  #screen-timer {
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-    gap: 0;
-  }
-
-  /* Orb */
-  .orb-wrap {
-    position: relative;
-    width: 220px;
-    height: 220px;
-    margin-bottom: 32px;
-  }
-
-  .orb {
-    width: 220px;
-    height: 220px;
-    border-radius: 50%;
-    background: radial-gradient(ellipse at 40% 35%, #2a3d2a 0%, #141a14 60%, #0d110d 100%);
-    box-shadow:
-      0 0 60px rgba(122,173,122,0.08),
-      0 0 120px rgba(122,173,122,0.04),
-      inset 0 1px 0 rgba(168,200,168,0.1);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    cursor: pointer;
-    transition: box-shadow 0.6s ease;
-    border: 1px solid rgba(122,173,122,0.1);
-  }
-
-  .orb.active {
-    box-shadow:
-      0 0 80px rgba(122,173,122,0.15),
-      0 0 160px rgba(122,173,122,0.07),
-      inset 0 1px 0 rgba(168,200,168,0.15);
-    animation: breathe 4s ease-in-out infinite;
-  }
-
+  /* TIMER */
+  #screen-timer { align-items: center; justify-content: center; padding: 24px; gap: 0; }
+  .orb-wrap { position: relative; width: 220px; height: 220px; margin-bottom: 32px; }
+  .orb { width: 220px; height: 220px; border-radius: 50%; background: radial-gradient(ellipse at 40% 35%, #2a3d2a 0%, #141a14 60%, #0d110d 100%); box-shadow: 0 0 60px rgba(122,173,122,0.08), 0 0 120px rgba(122,173,122,0.04), inset 0 1px 0 rgba(168,200,168,0.1); display: flex; align-items: center; justify-content: center; flex-direction: column; cursor: pointer; transition: box-shadow 0.6s ease; border: 1px solid rgba(122,173,122,0.1); }
+  .orb.active { box-shadow: 0 0 80px rgba(122,173,122,0.15), 0 0 160px rgba(122,173,122,0.07), inset 0 1px 0 rgba(168,200,168,0.15); animation: breathe 4s ease-in-out infinite; }
   @keyframes breathe {
-    0%, 100% { box-shadow: 0 0 80px rgba(122,173,122,0.15), 0 0 160px rgba(122,173,122,0.07), inset 0 1px 0 rgba(168,200,168,0.15); }
+    0%,100% { box-shadow: 0 0 80px rgba(122,173,122,0.15), 0 0 160px rgba(122,173,122,0.07), inset 0 1px 0 rgba(168,200,168,0.15); }
     50% { box-shadow: 0 0 100px rgba(122,173,122,0.22), 0 0 200px rgba(122,173,122,0.1), inset 0 1px 0 rgba(168,200,168,0.2); }
   }
-
-  /* SVG ring */
-  .ring-svg {
-    position: absolute;
-    inset: -10px;
-    width: calc(100% + 20px);
-    height: calc(100% + 20px);
-    transform: rotate(-90deg);
-  }
-
-  .ring-track {
-    fill: none;
-    stroke: rgba(122,173,122,0.08);
-    stroke-width: 2;
-  }
-
-  .ring-progress {
-    fill: none;
-    stroke: var(--accent);
-    stroke-width: 2;
-    stroke-linecap: round;
-    transition: stroke-dashoffset 1s linear;
-    opacity: 0.7;
-  }
-
-  .time-display {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 52px;
-    font-weight: 300;
-    color: var(--text);
-    letter-spacing: -0.01em;
-    line-height: 1;
-    user-select: none;
-  }
-
-  .orb-label {
-    font-size: 10px;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--text3);
-    margin-top: 6px;
-  }
-
-  /* Duration selector */
-  .duration-section {
-    width: 100%;
-    max-width: 340px;
-    margin-bottom: 28px;
-  }
-
-  .duration-label {
-    font-size: 10px;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--text3);
-    text-align: center;
-    margin-bottom: 14px;
-  }
-
-  .presets {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 6px;
-    margin-bottom: 16px;
-  }
-
-  .preset-btn {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--text2);
-    font-family: 'Inter', sans-serif;
-    font-size: 12px;
-    font-weight: 300;
-    padding: 6px 12px;
-    border-radius: 20px;
-    cursor: pointer;
-    transition: all 0.2s;
-    letter-spacing: 0.04em;
-  }
-
+  .ring-svg { position: absolute; inset: -10px; width: calc(100% + 20px); height: calc(100% + 20px); transform: rotate(-90deg); }
+  .ring-track { fill: none; stroke: rgba(122,173,122,0.08); stroke-width: 2; }
+  .ring-progress { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; transition: stroke-dashoffset 1s linear; opacity: 0.7; }
+  .time-display { font-family: 'Cormorant Garamond', serif; font-size: 52px; font-weight: 300; color: var(--text); letter-spacing: -0.01em; line-height: 1; user-select: none; }
+  .orb-label { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text3); margin-top: 6px; }
+  .duration-section { width: 100%; max-width: 340px; margin-bottom: 28px; }
+  .duration-label { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text3); text-align: center; margin-bottom: 14px; }
+  .presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 16px; }
+  .preset-btn { background: var(--surface); border: 1px solid var(--border); color: var(--text2); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 300; padding: 6px 12px; border-radius: 20px; cursor: pointer; transition: all 0.2s; letter-spacing: 0.04em; }
   .preset-btn:hover { color: var(--text); border-color: rgba(122,173,122,0.25); }
-  .preset-btn.active {
-    background: rgba(122,173,122,0.12);
-    border-color: rgba(122,173,122,0.35);
-    color: var(--accent2);
-  }
-
-  .custom-duration {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-  }
-
-  .dur-adj {
-    background: none;
-    border: 1px solid var(--border);
-    color: var(--text2);
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    font-size: 18px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
-    font-weight: 300;
-    line-height: 1;
-    padding-bottom: 1px;
-  }
-
+  .preset-btn.active { background: rgba(122,173,122,0.12); border-color: rgba(122,173,122,0.35); color: var(--accent2); }
+  .custom-duration { display: flex; align-items: center; justify-content: center; gap: 12px; }
+  .dur-adj { background: none; border: 1px solid var(--border); color: var(--text2); width: 32px; height: 32px; border-radius: 50%; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; font-weight: 300; line-height: 1; padding-bottom: 1px; }
   .dur-adj:hover { color: var(--accent2); border-color: rgba(122,173,122,0.35); }
-
-  .dur-value {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 28px;
-    font-weight: 300;
-    color: var(--text);
-    min-width: 80px;
-    text-align: center;
-    letter-spacing: 0.02em;
-  }
-
-  /* Controls */
-  .controls {
-    display: flex;
-    gap: 16px;
-    align-items: center;
-    margin-bottom: 24px;
-  }
-
-  .btn-main {
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    background: rgba(122,173,122,0.1);
-    border: 1px solid rgba(122,173,122,0.25);
-    color: var(--accent2);
-    font-size: 22px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
-  }
-
-  .btn-main:hover {
-    background: rgba(122,173,122,0.18);
-    border-color: rgba(122,173,122,0.45);
-  }
-
+  .dur-value { font-family: 'Cormorant Garamond', serif; font-size: 28px; font-weight: 300; color: var(--text); min-width: 80px; text-align: center; }
+  .controls { display: flex; gap: 16px; align-items: center; margin-bottom: 24px; }
+  .btn-main { width: 64px; height: 64px; border-radius: 50%; background: rgba(122,173,122,0.1); border: 1px solid rgba(122,173,122,0.25); color: var(--accent2); font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+  .btn-main:hover { background: rgba(122,173,122,0.18); border-color: rgba(122,173,122,0.45); }
   .btn-main:active { transform: scale(0.95); }
-
-  .btn-secondary {
-    background: none;
-    border: 1px solid var(--border);
-    color: var(--text3);
-    font-size: 13px;
-    padding: 8px 20px;
-    border-radius: 20px;
-    cursor: pointer;
-    font-family: 'Inter', sans-serif;
-    font-weight: 300;
-    letter-spacing: 0.06em;
-    transition: all 0.2s;
-  }
-
+  .btn-secondary { background: none; border: 1px solid var(--border); color: var(--text3); font-size: 13px; padding: 8px 20px; border-radius: 20px; cursor: pointer; font-family: 'Inter', sans-serif; font-weight: 300; letter-spacing: 0.06em; transition: all 0.2s; }
   .btn-secondary:hover { color: var(--danger); border-color: rgba(200,122,122,0.3); }
-
-  /* Dimmed state */
-  .dimmed nav,
-  .dimmed .duration-section,
-  .dimmed .controls .btn-secondary {
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.8s;
-  }
-
+  .dimmed nav, .dimmed .duration-section, .dimmed .controls .btn-secondary { opacity: 0; pointer-events: none; transition: opacity 0.8s; }
   .dimmed .orb-wrap { margin-bottom: 0; }
 
-  /* ─── LOG SCREEN ─── */
-  #screen-log {
-    padding: 20px 24px;
-    gap: 0;
-  }
-
-  .log-header {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    margin-bottom: 20px;
-  }
-
-  .log-title {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 28px;
-    font-weight: 300;
-    color: var(--text);
-    font-style: italic;
-  }
-
-  .log-stats {
-    font-size: 11px;
-    color: var(--text3);
-    letter-spacing: 0.08em;
-  }
-
-  .summary-cards {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-bottom: 24px;
-  }
-
-  .summary-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 14px 16px;
-  }
-
-  .summary-card-label {
-    font-size: 10px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--text3);
-    margin-bottom: 6px;
-  }
-
-  .summary-card-value {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 26px;
-    font-weight: 300;
-    color: var(--text);
-  }
-
-  .summary-card-sub {
-    font-size: 11px;
-    color: var(--text3);
-    margin-top: 2px;
-  }
-
-  .sessions-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .session-item {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px 16px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .session-item.incomplete {
-    border-color: rgba(200,122,122,0.12);
-  }
-
-  .session-left {}
-
-  .session-date {
-    font-size: 12px;
-    color: var(--text3);
-    letter-spacing: 0.04em;
-    margin-bottom: 3px;
-  }
-
-  .session-time-range {
-    font-size: 11px;
-    color: var(--text3);
-  }
-
-  .session-right {
-    text-align: right;
-  }
-
-  .session-duration {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 22px;
-    font-weight: 300;
-    color: var(--text);
-  }
-
-  .session-status {
-    font-size: 10px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-
+  /* LOG */
+  #screen-log { padding: 20px 24px; gap: 0; }
+  .log-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 20px; }
+  .log-title { font-family: 'Cormorant Garamond', serif; font-size: 28px; font-weight: 300; color: var(--text); font-style: italic; }
+  .log-stats { font-size: 11px; color: var(--text3); letter-spacing: 0.08em; }
+  .summary-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .summary-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+  .summary-card-label { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text3); margin-bottom: 6px; }
+  .summary-card-value { font-family: 'Cormorant Garamond', serif; font-size: 26px; font-weight: 300; color: var(--text); }
+  .sync-note { font-size: 10px; color: var(--text3); letter-spacing: 0.06em; margin-bottom: 16px; min-height: 14px; }
+  .sessions-list { display: flex; flex-direction: column; gap: 8px; }
+  .session-item { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; }
+  .session-item.incomplete { border-color: rgba(200,122,122,0.12); }
+  .session-date { font-size: 12px; color: var(--text3); letter-spacing: 0.04em; margin-bottom: 3px; }
+  .session-time-range { font-size: 11px; color: var(--text3); }
+  .session-right { text-align: right; }
+  .session-duration { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 300; color: var(--text); }
+  .session-status { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
   .session-status.complete { color: var(--accent); }
   .session-status.incomplete { color: var(--danger); opacity: 0.7; }
+  .empty-log { text-align: center; padding: 60px 0; color: var(--text3); }
+  .empty-log-icon { font-size: 32px; margin-bottom: 12px; opacity: 0.4; }
+  .empty-log p { font-size: 13px; letter-spacing: 0.06em; }
 
-  .empty-log {
-    text-align: center;
-    padding: 60px 0;
-    color: var(--text3);
-  }
-
-  .empty-log-icon {
-    font-size: 32px;
-    margin-bottom: 12px;
-    opacity: 0.4;
-  }
-
-  .empty-log p {
-    font-size: 13px;
-    letter-spacing: 0.06em;
-  }
-
-  /* Toast */
-  #toast {
-    position: fixed;
-    bottom: 32px;
-    left: 50%;
-    transform: translateX(-50%) translateY(20px);
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--text2);
-    font-size: 12px;
-    letter-spacing: 0.08em;
-    padding: 10px 20px;
-    border-radius: 20px;
-    opacity: 0;
-    transition: all 0.4s;
-    pointer-events: none;
-    white-space: nowrap;
-    z-index: 999;
-  }
-
-  #toast.show {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
-
-  /* Tap anywhere to undim */
-  .undim-hint {
-    position: fixed;
-    bottom: 40px;
-    left: 0; right: 0;
-    text-align: center;
-    font-size: 10px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--text3);
-    opacity: 0;
-    transition: opacity 1s;
-    pointer-events: none;
-  }
-
-  .dimmed .undim-hint {
-    opacity: 0.5;
-  }
+  #toast { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--surface); border: 1px solid var(--border); color: var(--text2); font-size: 12px; letter-spacing: 0.08em; padding: 10px 20px; border-radius: 20px; opacity: 0; transition: all 0.4s; pointer-events: none; white-space: nowrap; z-index: 999; }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 </style>
 </head>
 <body>
+
+<!-- AUTH SCREEN -->
+<div id="auth-screen">
+  <div class="auth-title">Shama</div>
+  <div class="auth-sub">meditation timer</div>
+  <div class="auth-tabs">
+    <button class="auth-tab active" id="tab-login" onclick="switchTab('login')">Sign in</button>
+    <button class="auth-tab" id="tab-register" onclick="switchTab('register')">Register</button>
+  </div>
+  <div class="auth-form">
+    <input class="auth-input" id="auth-email" type="email" placeholder="Email" autocomplete="email">
+    <input class="auth-input" id="auth-password" type="password" placeholder="Password" autocomplete="current-password">
+    <div class="auth-error" id="auth-error"></div>
+    <button class="auth-btn" id="auth-submit" onclick="handleAuth()">Sign in</button>
+  </div>
+  <button class="auth-guest" onclick="continueAsGuest()">Continue without account</button>
+</div>
+
+<!-- APP -->
 <div id="app">
   <nav>
-    <button class="nav-btn active" onclick="showScreen('timer')">Timer</button>
-    <button class="nav-btn" onclick="showScreen('log')">History</button>
+    <button class="nav-btn active" onclick="showScreen('timer', event)">Timer</button>
+    <button class="nav-btn" onclick="showScreen('log', event)">History</button>
+    <button class="nav-user" id="nav-user" onclick="doSignOut()">sign out</button>
   </nav>
 
-  <!-- TIMER -->
   <div id="screen-timer" class="screen active">
     <div class="orb-wrap">
       <svg class="ring-svg" viewBox="0 0 240 240">
         <circle class="ring-track" cx="120" cy="120" r="116"/>
-        <circle class="ring-progress" id="ring" cx="120" cy="120" r="116"
-          stroke-dasharray="729"
-          stroke-dashoffset="729"/>
+        <circle class="ring-progress" id="ring" cx="120" cy="120" r="116" stroke-dasharray="729" stroke-dashoffset="729"/>
       </svg>
       <div class="orb" id="orb" onclick="handleOrbClick()">
-        <div class="time-display" id="time-display">20:00</div>
+        <div class="time-display" id="time-display">180:00</div>
         <div class="orb-label" id="orb-label"></div>
       </div>
     </div>
-
     <div class="duration-section" id="duration-section">
       <div class="duration-label">duration</div>
-      <div class="presets" id="presets">
+      <div class="presets">
         <button class="preset-btn" onclick="setPreset(10)">10</button>
         <button class="preset-btn" onclick="setPreset(15)">15</button>
         <button class="preset-btn" onclick="setPreset(20)">20</button>
@@ -529,7 +165,7 @@
         <button class="preset-btn" onclick="setPreset(45)">45</button>
         <button class="preset-btn" onclick="setPreset(60)">60</button>
         <button class="preset-btn" onclick="setPreset(120)">120</button>
-        <button class="preset-btn" onclick="setPreset(180)">180</button>
+        <button class="preset-btn active" onclick="setPreset(180)">180</button>
       </div>
       <div class="custom-duration">
         <button class="dur-adj" onclick="adjustDuration(-5)">−</button>
@@ -537,375 +173,347 @@
         <button class="dur-adj" onclick="adjustDuration(5)">+</button>
       </div>
     </div>
-
     <div class="controls">
-      <button class="btn-main" id="btn-play" onclick="handleOrbClick()" title="Старт / Пауза">
-        <span id="play-icon">▶</span>
-      </button>
+      <button class="btn-main" onclick="handleOrbClick()"><span id="play-icon">▶</span></button>
       <button class="btn-secondary" id="btn-end" onclick="endSession()" style="display:none">finish</button>
     </div>
   </div>
 
-  <!-- LOG -->
   <div id="screen-log" class="screen">
     <div class="log-header">
       <div class="log-title">History</div>
       <div class="log-stats" id="log-stats"></div>
     </div>
     <div class="summary-cards" id="summary-cards"></div>
+    <div class="sync-note" id="sync-note"></div>
     <div class="sessions-list" id="sessions-list"></div>
   </div>
 </div>
 
 <div id="toast"></div>
-<div class="undim-hint" id="undim-hint">коснись чтобы вернуться</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, collection, addDoc, getDocs, query, orderBy, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const app = initializeApp({
+  apiKey: "AIzaSyBBNNi5VjSTDmxjheaYdpzMqMZHfzPaHEo",
+  authDomain: "shamatimer-3c172.firebaseapp.com",
+  projectId: "shamatimer-3c172",
+  storageBucket: "shamatimer-3c172.firebasestorage.app",
+  messagingSenderId: "501940193954",
+  appId: "1:501940193954:web:9e92a0ca42ce0e39e6a5fb"
+});
+
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+let currentUser = null;
+let guestMode = false;
+
+onAuthStateChanged(auth, user => {
+  if (user) { currentUser = user; guestMode = false; showApp(user.email); }
+});
+
+window._handleAuth = async (isLogin, email, password) => {
+  if (isLogin) return signInWithEmailAndPassword(auth, email, password);
+  return createUserWithEmailAndPassword(auth, email, password);
+};
+
+window._signOut = async () => { await signOut(auth); currentUser = null; };
+window._getUser = () => currentUser;
+window._isGuest = () => guestMode;
+
+window._saveSession = async (session) => {
+  if (guestMode || !currentUser) return;
+  const col = collection(db, 'users', currentUser.uid, 'sessions');
+  await addDoc(col, { ...session, createdAt: serverTimestamp() });
+};
+
+window._loadSessions = async () => {
+  if (guestMode || !currentUser) return null;
+  const col = collection(db, 'users', currentUser.uid, 'sessions');
+  const snap = await getDocs(query(col, orderBy('createdAt', 'desc')));
+  return snap.docs.map(d => d.data());
+};
+
+window._setGuest = (v) => { guestMode = v; };
+window._setUser = (u) => { currentUser = u; };
+
+function showApp(email) {
+  document.getElementById('auth-screen').classList.add('hidden');
+  const label = guestMode ? 'guest' : email.split('@')[0];
+  document.getElementById('nav-user').textContent = label;
+}
+window._showApp = showApp;
+</script>
 
 <script>
-// ─── STATE ───
 let totalMinutes = 180;
-let secondsLeft = 0;
-let totalSeconds = 0;
-let timerInterval = null;
-let isRunning = false;
-let isPaused = false;
-let sessionStart = null;
-let isDimmed = false;
-let dimTimeout = null;
-
-// ─── AUDIO ───
+let secondsLeft = 0, totalSeconds = 0;
+let timerInterval = null, isRunning = false, isPaused = false;
+let sessionStart = null, isDimmed = false, dimTimeout = null;
 let audioCtx = null;
+let authMode = 'login';
 
-function getAudioCtx() {
+function getCtx() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   return audioCtx;
 }
 
+// SOUND
 function playBell(type) {
-  const ctx = getAudioCtx();
-  if (type === 'start') {
-    playSakya(ctx, 0.22);
-  } else {
-    playSakya(ctx, 0.24);
-    setTimeout(() => playSakya(ctx, 0.18), 2200);
-  }
+  const c = getCtx();
+  if (type === 'start') { playSakya(c, 0.22); }
+  else { playSakya(c, 0.24); setTimeout(() => playSakya(c, 0.18), 2200); }
+}
+function playSakya(c, gain) {
+  strike(c, 1040, gain, 5.5);
+  strike(c, 1040*2.76, gain*0.36, 3.0);
+  click(c, 0.07);
+}
+function strike(c, freq, gain, dur) {
+  const o = c.createOscillator(), g = c.createGain(), f = c.createBiquadFilter();
+  f.type = 'lowpass'; f.frequency.value = freq*5; o.type = 'sine';
+  o.frequency.setValueAtTime(freq, c.currentTime);
+  o.frequency.exponentialRampToValueAtTime(freq*0.996, c.currentTime+dur);
+  g.gain.setValueAtTime(0, c.currentTime);
+  g.gain.linearRampToValueAtTime(gain, c.currentTime+0.008);
+  g.gain.exponentialRampToValueAtTime(0.0008, c.currentTime+dur);
+  o.connect(f); f.connect(g); g.connect(c.destination);
+  o.start(); o.stop(c.currentTime+dur);
+}
+function click(c, gain) {
+  const buf = c.createBuffer(1, c.sampleRate*0.05, c.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.exp(-i/(c.sampleRate*0.008));
+  const src=c.createBufferSource(), g=c.createGain(), f=c.createBiquadFilter();
+  f.type='highpass'; f.frequency.value=3000; src.buffer=buf; g.gain.value=gain;
+  src.connect(f); f.connect(g); g.connect(c.destination); src.start();
 }
 
-function playSakya(ctx, gain) {
-  // 1040 Hz — высокая тибетская чаша, вариант C
-  strikePartial(ctx, 1040, gain, 5.5);
-  strikePartial(ctx, 1040 * 2.76, gain * 0.36, 3.0);
-  strikeClick(ctx, 0.07);
-}
+// LOCAL STORAGE
+function loadLocal() { try { return JSON.parse(localStorage.getItem('shama_sessions')||'[]'); } catch{return[];} }
+function saveLocal(s) { localStorage.setItem('shama_sessions', JSON.stringify(s)); }
 
-function strikePartial(ctx, freq, gain, dur) {
-  const o = ctx.createOscillator();
-  const g = ctx.createGain();
-  const f = ctx.createBiquadFilter();
-  f.type = 'lowpass';
-  f.frequency.value = freq * 5;
-  o.type = 'sine';
-  o.frequency.setValueAtTime(freq, ctx.currentTime);
-  o.frequency.exponentialRampToValueAtTime(freq * 0.996, ctx.currentTime + dur);
-  g.gain.setValueAtTime(0, ctx.currentTime);
-  g.gain.linearRampToValueAtTime(gain, ctx.currentTime + 0.008);
-  g.gain.exponentialRampToValueAtTime(0.0008, ctx.currentTime + dur);
-  o.connect(f); f.connect(g); g.connect(ctx.destination);
-  o.start(); o.stop(ctx.currentTime + dur);
-}
-
-function strikeClick(ctx, gain) {
-  const buf = ctx.createBuffer(1, ctx.sampleRate * 0.05, ctx.sampleRate);
-  const data = buf.getChannelData(0);
-  for (let i = 0; i < data.length; i++) {
-    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.008));
-  }
-  const src = ctx.createBufferSource();
-  const g = ctx.createGain();
-  const f = ctx.createBiquadFilter();
-  f.type = 'highpass'; f.frequency.value = 3000;
-  src.buffer = buf;
-  g.gain.value = gain;
-  src.connect(f); f.connect(g); g.connect(ctx.destination);
-  src.start();
-}
-
-// ─── STORAGE ───
-function loadSessions() {
-  try { return JSON.parse(localStorage.getItem('meditation_sessions') || '[]'); }
-  catch { return []; }
-}
-
-function saveSessions(sessions) {
-  localStorage.setItem('meditation_sessions', JSON.stringify(sessions));
-}
-
-function logSession(durationSec, planned, complete) {
-  const sessions = loadSessions();
+async function logSession(durationSec, planned, complete) {
   const now = new Date();
-  const start = new Date(now.getTime() - durationSec * 1000);
-  sessions.unshift({
-    id: Date.now(),
-    date: start.toISOString(),
-    endDate: now.toISOString(),
-    durationSec,
-    plannedSec: planned,
-    complete
-  });
-  saveSessions(sessions);
+  const session = { id: Date.now(), date: new Date(now-durationSec*1000).toISOString(), endDate: now.toISOString(), durationSec, plannedSec: planned, complete };
+  const sessions = loadLocal(); sessions.unshift(session); saveLocal(sessions);
+  try { if (window._saveSession) await window._saveSession(session); } catch(e){}
 }
 
-// ─── TIMER LOGIC ───
-function setPreset(min) {
-  totalMinutes = min;
-  updateDurationDisplay();
-  updatePresetBtns();
+// AUTH
+function switchTab(mode) {
+  authMode = mode;
+  document.getElementById('tab-login').classList.toggle('active', mode==='login');
+  document.getElementById('tab-register').classList.toggle('active', mode==='register');
+  document.getElementById('auth-submit').textContent = mode==='login' ? 'Sign in' : 'Create account';
+  document.getElementById('auth-error').textContent = '';
 }
+window.switchTab = switchTab;
 
-function adjustDuration(delta) {
-  totalMinutes = Math.max(5, Math.min(240, totalMinutes + delta));
-  updateDurationDisplay();
-  updatePresetBtns();
-}
-
-function updateDurationDisplay() {
-  if (!isRunning && !isPaused) {
-    document.getElementById('dur-value').textContent = totalMinutes;
-    document.getElementById('time-display').textContent = formatTime(totalMinutes * 60);
+async function handleAuth() {
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const errEl = document.getElementById('auth-error');
+  errEl.textContent = '';
+  try {
+    const cred = await window._handleAuth(authMode==='login', email, password);
+    window._setUser(cred.user);
+    window._setGuest(false);
+    window._showApp(cred.user.email);
+  } catch(e) {
+    const msgs = {'auth/invalid-email':'Invalid email','auth/user-not-found':'User not found','auth/wrong-password':'Wrong password','auth/email-already-in-use':'Email already registered','auth/weak-password':'Password min 6 chars','auth/invalid-credential':'Wrong email or password'};
+    errEl.textContent = msgs[e.code] || 'Error: ' + e.message;
   }
 }
+window.handleAuth = handleAuth;
 
+function continueAsGuest() {
+  window._setGuest(true);
+  window._setUser(null);
+  window._showApp('guest');
+}
+window.continueAsGuest = continueAsGuest;
+
+async function doSignOut() {
+  try { if (!window._isGuest()) await window._signOut(); } catch(e){}
+  window._setUser(null);
+  window._setGuest(false);
+  document.getElementById('auth-screen').classList.remove('hidden');
+  document.getElementById('auth-email').value = '';
+  document.getElementById('auth-password').value = '';
+}
+window.doSignOut = doSignOut;
+
+// TIMER
+function setPreset(min) { totalMinutes=min; updateDurDisplay(); updatePresetBtns(); }
+function adjustDuration(delta) { totalMinutes=Math.max(5,Math.min(240,totalMinutes+delta)); updateDurDisplay(); updatePresetBtns(); }
+window.setPreset=setPreset; window.adjustDuration=adjustDuration;
+
+function updateDurDisplay() {
+  if (!isRunning&&!isPaused) {
+    document.getElementById('dur-value').textContent=totalMinutes;
+    document.getElementById('time-display').textContent=fmt(totalMinutes*60);
+  }
+}
 function updatePresetBtns() {
-  document.querySelectorAll('.preset-btn').forEach(btn => {
-    btn.classList.toggle('active', parseInt(btn.textContent) === totalMinutes);
-  });
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.toggle('active',parseInt(b.textContent)===totalMinutes));
 }
-
-function formatTime(sec) {
-  const m = Math.floor(sec / 60);
-  const s = sec % 60;
-  return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
-}
+function fmt(sec) { return String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0'); }
+function pad(n) { return String(n).padStart(2,'0'); }
 
 function handleOrbClick() {
-  if (isDimmed) { undim(); return; }
-  if (!isRunning && !isPaused) startSession();
+  if (isDimmed){undim();return;}
+  if (!isRunning&&!isPaused) startSession();
   else if (isRunning) pauseSession();
   else if (isPaused) resumeSession();
 }
+window.handleOrbClick=handleOrbClick;
 
 function startSession() {
-  // Resume audio context on user gesture
-  getAudioCtx().resume();
-
-  totalSeconds = totalMinutes * 60;
-  secondsLeft = totalSeconds;
-  sessionStart = new Date();
-  isRunning = true;
-  isPaused = false;
-
-  playBell('start');
-  updateTimerUI();
-  startTick();
-  dimAfterDelay();
+  getCtx().resume();
+  totalSeconds=totalMinutes*60; secondsLeft=totalSeconds;
+  sessionStart=new Date(); isRunning=true; isPaused=false;
+  playBell('start'); updateTimerUI(); tick(); dimAfterDelay();
 }
-
 function pauseSession() {
-  clearInterval(timerInterval);
-  isRunning = false;
-  isPaused = true;
-  clearTimeout(dimTimeout);
-  if (isDimmed) undim();
-  document.getElementById('play-icon').textContent = '▶';
-  document.getElementById('orb-label').textContent = 'paused';
+  clearInterval(timerInterval); isRunning=false; isPaused=true;
+  clearTimeout(dimTimeout); if(isDimmed)undim();
+  document.getElementById('play-icon').textContent='▶';
+  document.getElementById('orb-label').textContent='paused';
   document.getElementById('orb').classList.remove('active');
 }
-
 function resumeSession() {
-  isRunning = true;
-  isPaused = false;
-  document.getElementById('play-icon').textContent = '⏸';
-  document.getElementById('orb-label').textContent = '';
+  isRunning=true; isPaused=false;
+  document.getElementById('play-icon').textContent='⏸';
+  document.getElementById('orb-label').textContent='';
   document.getElementById('orb').classList.add('active');
-  startTick();
-  dimAfterDelay();
+  tick(); dimAfterDelay();
 }
+async function endSession() {
+  const elapsed=totalSeconds-secondsLeft, complete=secondsLeft<=0;
+  clearInterval(timerInterval); clearTimeout(dimTimeout);
+  if(isDimmed)undim();
+  if(elapsed>3){ await logSession(elapsed,totalSeconds,complete); showToast(complete?'Session complete ✓':'Session saved'); }
+  isRunning=false; isPaused=false; secondsLeft=0; resetTimerUI();
+}
+window.endSession=endSession;
 
-function endSession() {
-  const elapsed = totalSeconds - secondsLeft;
-  const complete = secondsLeft <= 0;
+function tick() {
   clearInterval(timerInterval);
-  clearTimeout(dimTimeout);
-  if (isDimmed) undim();
-
-  if (elapsed > 3) {
-    logSession(elapsed, totalSeconds, complete);
-    showToast(complete ? 'Session complete ✓' : 'Session saved');
-  }
-
-  isRunning = false;
-  isPaused = false;
-  secondsLeft = 0;
-  resetTimerUI();
+  timerInterval=setInterval(()=>{
+    if(secondsLeft<=0){clearInterval(timerInterval);endSession();playBell('end');return;}
+    secondsLeft--; updateTimerUI();
+  },1000);
 }
-
-function startTick() {
-  clearInterval(timerInterval);
-  timerInterval = setInterval(() => {
-    if (secondsLeft <= 0) {
-      clearInterval(timerInterval);
-      endSession();
-      playBell('end');
-      return;
-    }
-    secondsLeft--;
-    updateTimerUI();
-  }, 1000);
-}
-
 function updateTimerUI() {
-  const display = document.getElementById('time-display');
-  const ring = document.getElementById('ring');
-  const orb = document.getElementById('orb');
-  const orbLabel = document.getElementById('orb-label');
-  const playIcon = document.getElementById('play-icon');
-  const btnEnd = document.getElementById('btn-end');
-  const durationSection = document.getElementById('duration-section');
-
-  display.textContent = formatTime(secondsLeft);
-
-  const circumference = 729;
-  const progress = 1 - (secondsLeft / totalSeconds);
-  ring.style.strokeDashoffset = circumference * (1 - progress);
-
-  orb.classList.add('active');
-  orbLabel.textContent = '';
-  playIcon.textContent = isRunning ? '⏸' : '▶';
-  btnEnd.style.display = 'inline-block';
-  durationSection.style.display = 'none';
+  document.getElementById('time-display').textContent=fmt(secondsLeft);
+  document.getElementById('ring').style.strokeDashoffset=729*(1-(secondsLeft/totalSeconds));
+  document.getElementById('orb').classList.add('active');
+  document.getElementById('orb-label').textContent='';
+  document.getElementById('play-icon').textContent=isRunning?'⏸':'▶';
+  document.getElementById('btn-end').style.display='inline-block';
+  document.getElementById('duration-section').style.display='none';
 }
-
 function resetTimerUI() {
-  document.getElementById('time-display').textContent = formatTime(totalMinutes * 60);
-  document.getElementById('ring').style.strokeDashoffset = '729';
+  document.getElementById('time-display').textContent=fmt(totalMinutes*60);
+  document.getElementById('ring').style.strokeDashoffset='729';
   document.getElementById('orb').classList.remove('active');
-  document.getElementById('orb-label').textContent = 'нажми чтобы начать';
-  document.getElementById('play-icon').textContent = '▶';
-  document.getElementById('btn-end').style.display = 'none';
-  document.getElementById('duration-section').style.display = 'block';
+  document.getElementById('orb-label').textContent='';
+  document.getElementById('play-icon').textContent='▶';
+  document.getElementById('btn-end').style.display='none';
+  document.getElementById('duration-section').style.display='block';
 }
 
-// ─── DIM ───
-function dimAfterDelay() {
-  clearTimeout(dimTimeout);
-  dimTimeout = setTimeout(() => {
-    if (isRunning) dim();
-  }, 6000);
+// DIM
+function dimAfterDelay(){clearTimeout(dimTimeout);dimTimeout=setTimeout(()=>{if(isRunning)dim();},6000);}
+function dim(){isDimmed=true;document.getElementById('app').classList.add('dimmed');}
+function undim(){isDimmed=false;document.getElementById('app').classList.remove('dimmed');if(isRunning)dimAfterDelay();}
+document.getElementById('app').addEventListener('click',()=>{if(isDimmed)undim();});
+
+// NAV
+function showScreen(name,e) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  if(e)e.target.classList.add('active');
+  if(name==='log')renderLog();
 }
+window.showScreen=showScreen;
 
-function dim() {
-  isDimmed = true;
-  document.getElementById('app').classList.add('dimmed');
-}
+// LOG
+async function renderLog() {
+  const list=document.getElementById('sessions-list');
+  const sumEl=document.getElementById('summary-cards');
+  const statsEl=document.getElementById('log-stats');
+  const syncEl=document.getElementById('sync-note');
 
-function undim() {
-  isDimmed = false;
-  document.getElementById('app').classList.remove('dimmed');
-  if (isRunning) dimAfterDelay();
-}
+  let sessions=loadLocal();
 
-document.getElementById('app').addEventListener('click', e => {
-  if (isDimmed) { undim(); }
-});
-
-// ─── NAV ───
-function showScreen(name) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('screen-' + name).classList.add('active');
-  event.target.classList.add('active');
-  if (name === 'log') renderLog();
-}
-
-// ─── LOG RENDER ───
-function renderLog() {
-  const sessions = loadSessions();
-  const list = document.getElementById('sessions-list');
-  const summaryEl = document.getElementById('summary-cards');
-  const statsEl = document.getElementById('log-stats');
-
-  if (sessions.length === 0) {
-    summaryEl.innerHTML = '';
-    list.innerHTML = '<div class="empty-log"><div class="empty-log-icon">◯</div><p>No sessions yet</p></div>';
-    statsEl.textContent = '';
-    return;
+  if(window._loadSessions && !window._isGuest()) {
+    syncEl.textContent='Syncing...';
+    try {
+      const cloud=await window._loadSessions();
+      if(cloud&&cloud.length>0){sessions=cloud;syncEl.textContent='✓ Synced with cloud';}
+      else syncEl.textContent='';
+    } catch(e){syncEl.textContent='Offline — showing local data';}
+  } else {
+    syncEl.textContent=window._isGuest()?'Guest mode — data is local only':'';
   }
 
-  // Stats
-  const totalMin = Math.round(sessions.reduce((a, s) => a + s.durationSec, 0) / 60);
-  const streak = calcStreak(sessions);
+  if(!sessions.length){
+    sumEl.innerHTML='';
+    list.innerHTML='<div class="empty-log"><div class="empty-log-icon">◯</div><p>No sessions yet</p></div>';
+    statsEl.textContent=''; return;
+  }
 
-  statsEl.textContent = sessions.length + ' sessions';
-
-  summaryEl.innerHTML = `
+  const totalMin=Math.round(sessions.reduce((a,s)=>a+s.durationSec,0)/60);
+  const streak=calcStreak(sessions);
+  statsEl.textContent=sessions.length+' sessions';
+  sumEl.innerHTML=`
     <div class="summary-card">
       <div class="summary-card-label">Total time</div>
-      <div class="summary-card-value">${totalMin < 60 ? totalMin + '<span style="font-size:14px;color:var(--text3)"> min</span>' : Math.floor(totalMin/60) + '<span style="font-size:14px;color:var(--text3)"> h ' + (totalMin%60) + ' min</span>'}</div>
+      <div class="summary-card-value">${totalMin<60?totalMin+'<span style="font-size:14px;color:var(--text3)"> min</span>':Math.floor(totalMin/60)+'<span style="font-size:14px;color:var(--text3)"> h '+totalMin%60+' min</span>'}</div>
     </div>
     <div class="summary-card">
       <div class="summary-card-label">Day streak</div>
       <div class="summary-card-value">${streak}<span style="font-size:14px;color:var(--text3)"> days</span></div>
-    </div>
-  `;
+    </div>`;
 
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-
-  list.innerHTML = sessions.map(s => {
-    const start = new Date(s.date);
-    const end = new Date(s.endDate);
-    const dur = Math.round(s.durationSec / 60);
-    const dateStr = days[start.getDay()] + ', ' + start.getDate() + ' ' + months[start.getMonth()];
-    const timeStr = pad(start.getHours()) + ':' + pad(start.getMinutes()) + ' — ' + pad(end.getHours()) + ':' + pad(end.getMinutes());
-
-    return `<div class="session-item ${s.complete ? '' : 'incomplete'}">
-      <div class="session-left">
-        <div class="session-date">${dateStr}</div>
-        <div class="session-time-range">${timeStr}</div>
+  const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const dy=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  list.innerHTML=sessions.map(s=>{
+    const st=new Date(s.date),en=new Date(s.endDate),dur=Math.round(s.durationSec/60);
+    return `<div class="session-item ${s.complete?'':'incomplete'}">
+      <div>
+        <div class="session-date">${dy[st.getDay()]}, ${st.getDate()} ${mo[st.getMonth()]}</div>
+        <div class="session-time-range">${pad(st.getHours())}:${pad(st.getMinutes())} — ${pad(en.getHours())}:${pad(en.getMinutes())}</div>
       </div>
       <div class="session-right">
         <div class="session-duration">${dur} <span style="font-size:13px;color:var(--text3)">min</span></div>
-        <div class="session-status ${s.complete ? 'complete' : 'incomplete'}">${s.complete ? 'complete' : 'partial'}</div>
+        <div class="session-status ${s.complete?'complete':'incomplete'}">${s.complete?'complete':'partial'}</div>
       </div>
     </div>`;
   }).join('');
 }
 
-function pad(n) { return String(n).padStart(2,'0'); }
-
 function calcStreak(sessions) {
-  if (!sessions.length) return 0;
-  const dates = [...new Set(sessions.map(s => new Date(s.date).toDateString()))];
-  let streak = 0;
-  const today = new Date();
-  let check = new Date(today);
-  for (let i = 0; i < 365; i++) {
-    if (dates.includes(check.toDateString())) {
-      streak++;
-      check.setDate(check.getDate() - 1);
-    } else break;
-  }
+  if(!sessions.length)return 0;
+  const dates=[...new Set(sessions.map(s=>new Date(s.date).toDateString()))];
+  let streak=0;const c=new Date();
+  for(let i=0;i<365;i++){if(dates.includes(c.toDateString())){streak++;c.setDate(c.getDate()-1);}else break;}
   return streak;
 }
 
-// ─── TOAST ───
 function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2800);
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2800);
 }
 
-document.getElementById('time-display').textContent = formatTime(180 * 60);
 updatePresetBtns();
 </script>
 </body>
