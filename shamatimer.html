@@ -251,9 +251,11 @@ window._showApp = showApp;
 
 <script>
 let totalMinutes = 180;
-let secondsLeft = 0, totalSeconds = 0;
+let totalSeconds = 0;
+let sessionStartMs = null, pausedAtMs = null, pausedAccumMs = 0;
 let timerInterval = null, isRunning = false, isPaused = false;
-let sessionStart = null, isDimmed = false, dimTimeout = null;
+let isDimmed = false, dimTimeout = null;
+let endingFlag = false;
 let audioCtx = null;
 let authMode = 'login';
 
@@ -299,7 +301,8 @@ function saveLocal(s) { localStorage.setItem('shama_sessions', JSON.stringify(s)
 
 async function logSession(durationSec, planned, complete) {
   const now = new Date();
-  const session = { id: Date.now(), date: new Date(now-durationSec*1000).toISOString(), endDate: now.toISOString(), durationSec, plannedSec: planned, complete };
+  const startDate = sessionStartMs ? new Date(sessionStartMs) : new Date(now - durationSec*1000);
+  const session = { id: Date.now(), date: startDate.toISOString(), endDate: now.toISOString(), durationSec, plannedSec: planned, complete };
   const sessions = loadLocal(); sessions.unshift(session); saveLocal(sessions);
   try { if (window._saveSession) await window._saveSession(session); } catch(e){}
 }
@@ -365,6 +368,24 @@ function updatePresetBtns() {
 function fmt(sec) { return String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0'); }
 function pad(n) { return String(n).padStart(2,'0'); }
 
+function elapsedSec() {
+  if (!sessionStartMs) return 0;
+  const now = Date.now();
+  const pausedNow = pausedAtMs ? (now - pausedAtMs) : 0;
+  return Math.max(0, Math.floor((now - sessionStartMs - pausedAccumMs - pausedNow) / 1000));
+}
+function secondsLeft() { return Math.max(0, totalSeconds - elapsedSec()); }
+
+const ACTIVE_KEY = 'shama_active';
+function saveActiveState() {
+  if (!sessionStartMs) { try { localStorage.removeItem(ACTIVE_KEY); } catch(e){} return; }
+  try {
+    localStorage.setItem(ACTIVE_KEY, JSON.stringify({
+      sessionStartMs, totalSeconds, pausedAtMs, pausedAccumMs, isRunning, isPaused
+    }));
+  } catch(e){}
+}
+
 function handleOrbClick() {
   if (isDimmed){undim();return;}
   if (!isRunning&&!isPaused) startSession();
@@ -375,45 +396,66 @@ window.handleOrbClick=handleOrbClick;
 
 function startSession() {
   getCtx().resume();
-  totalSeconds=totalMinutes*60; secondsLeft=totalSeconds;
-  sessionStart=new Date(); isRunning=true; isPaused=false;
+  totalSeconds=totalMinutes*60;
+  sessionStartMs=Date.now(); pausedAtMs=null; pausedAccumMs=0;
+  isRunning=true; isPaused=false; endingFlag=false;
+  saveActiveState();
   playBell('start'); updateTimerUI(); tick(); dimAfterDelay();
 }
 function pauseSession() {
-  clearInterval(timerInterval); isRunning=false; isPaused=true;
+  clearInterval(timerInterval);
+  pausedAtMs=Date.now();
+  isRunning=false; isPaused=true;
+  saveActiveState();
   clearTimeout(dimTimeout); if(isDimmed)undim();
   document.getElementById('play-icon').textContent='▶';
   document.getElementById('orb-label').textContent='paused';
   document.getElementById('orb').classList.remove('active');
 }
 function resumeSession() {
+  if (pausedAtMs){ pausedAccumMs += Date.now() - pausedAtMs; pausedAtMs=null; }
   isRunning=true; isPaused=false;
+  saveActiveState();
   document.getElementById('play-icon').textContent='⏸';
   document.getElementById('orb-label').textContent='';
   document.getElementById('orb').classList.add('active');
   tick(); dimAfterDelay();
 }
 async function endSession() {
-  const elapsed=totalSeconds-secondsLeft, complete=secondsLeft<=0;
+  if (endingFlag) return;
+  endingFlag=true;
+  const elapsed=elapsedSec();
+  const complete=elapsed>=totalSeconds;
   clearInterval(timerInterval); clearTimeout(dimTimeout);
   if(isDimmed)undim();
   if(elapsed>3){ await logSession(elapsed,totalSeconds,complete); showToast(complete?'Session complete ✓':'Session saved'); }
-  isRunning=false; isPaused=false; secondsLeft=0; resetTimerUI();
+  isRunning=false; isPaused=false;
+  sessionStartMs=null; pausedAtMs=null; pausedAccumMs=0;
+  saveActiveState();
+  resetTimerUI();
 }
 window.endSession=endSession;
 
 function tick() {
   clearInterval(timerInterval);
   timerInterval=setInterval(()=>{
-    if(secondsLeft<=0){clearInterval(timerInterval);endSession();playBell('end');return;}
-    secondsLeft--; updateTimerUI();
+    const left=secondsLeft();
+    if(left<=0){
+      clearInterval(timerInterval);
+      playBell('end');
+      endSession();
+      return;
+    }
+    updateTimerUI();
   },1000);
 }
 function updateTimerUI() {
-  document.getElementById('time-display').textContent=fmt(secondsLeft);
-  document.getElementById('ring').style.strokeDashoffset=729*(1-(secondsLeft/totalSeconds));
-  document.getElementById('orb').classList.add('active');
-  document.getElementById('orb-label').textContent='';
+  const left = (isRunning||isPaused) ? secondsLeft() : totalMinutes*60;
+  const total = totalSeconds || (totalMinutes*60);
+  document.getElementById('time-display').textContent=fmt(left);
+  document.getElementById('ring').style.strokeDashoffset=729*(1-(left/total));
+  document.getElementById('orb').classList.toggle('active', isRunning);
+  document.getElementById('orb-label').textContent=isPaused?'paused':'';
   document.getElementById('play-icon').textContent=isRunning?'⏸':'▶';
   document.getElementById('btn-end').style.display='inline-block';
   document.getElementById('duration-section').style.display='none';
@@ -457,8 +499,13 @@ async function renderLog() {
     syncEl.textContent='Syncing...';
     try {
       const cloud=await window._loadSessions();
-      if(cloud&&cloud.length>0){sessions=cloud;syncEl.textContent='✓ Synced with cloud';}
-      else syncEl.textContent='';
+      if(cloud){
+        const map=new Map();
+        for (const s of cloud) if (s && s.id!=null) map.set(s.id, s);
+        for (const s of sessions) if (s && s.id!=null && !map.has(s.id)) map.set(s.id, s);
+        sessions=Array.from(map.values()).sort((a,b)=>new Date(b.date)-new Date(a.date));
+        syncEl.textContent='✓ Synced with cloud';
+      } else syncEl.textContent='';
     } catch(e){syncEl.textContent='Offline — showing local data';}
   } else {
     syncEl.textContent=window._isGuest()?'Guest mode — data is local only':'';
@@ -514,7 +561,39 @@ function showToast(msg) {
   setTimeout(()=>t.classList.remove('show'),2800);
 }
 
+function restoreActiveState() {
+  let raw; try { raw=localStorage.getItem(ACTIVE_KEY); } catch(e){ return; }
+  if (!raw) return;
+  let s; try { s=JSON.parse(raw); } catch(e){ try{localStorage.removeItem(ACTIVE_KEY);}catch(_){}; return; }
+  sessionStartMs=s.sessionStartMs; totalSeconds=s.totalSeconds||0;
+  pausedAtMs=s.pausedAtMs||null; pausedAccumMs=s.pausedAccumMs||0;
+  isRunning=!!s.isRunning; isPaused=!!s.isPaused;
+  if (totalSeconds>0) totalMinutes=Math.max(5,Math.round(totalSeconds/60));
+  updateDurDisplay(); updatePresetBtns();
+  if (isRunning && elapsedSec()>=totalSeconds) {
+    playBell('end');
+    endSession();
+    return;
+  }
+  if (isRunning || isPaused) {
+    updateTimerUI();
+    if (isRunning) tick();
+  }
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  if (isRunning && elapsedSec() >= totalSeconds) {
+    playBell('end');
+    endSession();
+  } else if (isRunning) {
+    updateTimerUI();
+    tick();
+  }
+});
+
 updatePresetBtns();
+restoreActiveState();
 </script>
 </body>
 </html>
