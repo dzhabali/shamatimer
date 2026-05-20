@@ -65,7 +65,7 @@
     0%,100% { box-shadow: 0 0 80px rgba(122,173,122,0.15), 0 0 160px rgba(122,173,122,0.07), inset 0 1px 0 rgba(168,200,168,0.15); }
     50% { box-shadow: 0 0 100px rgba(122,173,122,0.22), 0 0 200px rgba(122,173,122,0.1), inset 0 1px 0 rgba(168,200,168,0.2); }
   }
-  .ring-svg { position: absolute; inset: -10px; width: calc(100% + 20px); height: calc(100% + 20px); transform: rotate(-90deg); }
+  .ring-svg { position: absolute; inset: -10px; width: calc(100% + 20px); height: calc(100% + 20px); transform: rotate(-90deg); pointer-events: none; }
   .ring-track { fill: none; stroke: rgba(122,173,122,0.08); stroke-width: 2; }
   .ring-progress { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; transition: stroke-dashoffset 1s linear; opacity: 0.7; }
   .time-display { font-family: 'Cormorant Garamond', serif; font-size: 52px; font-weight: 300; color: var(--text); letter-spacing: -0.01em; line-height: 1; user-select: none; }
@@ -151,30 +151,26 @@
         <circle class="ring-progress" id="ring" cx="120" cy="120" r="116" stroke-dasharray="729" stroke-dashoffset="729"/>
       </svg>
       <div class="orb" id="orb" onclick="handleOrbClick()">
-        <div class="time-display" id="time-display">180:00</div>
-        <div class="orb-label" id="orb-label"></div>
+        <div class="time-display" id="time-display">▶</div>
+        <div class="orb-label" id="orb-label">DPE</div>
       </div>
     </div>
     <div class="duration-section" id="duration-section">
       <div class="duration-label">duration</div>
       <div class="presets">
-        <button class="preset-btn" onclick="setPreset(10)">10</button>
         <button class="preset-btn" onclick="setPreset(15)">15</button>
-        <button class="preset-btn" onclick="setPreset(20)">20</button>
-        <button class="preset-btn" onclick="setPreset(30)">30</button>
+        <button class="preset-btn active" onclick="setPreset(30)">30</button>
         <button class="preset-btn" onclick="setPreset(45)">45</button>
         <button class="preset-btn" onclick="setPreset(60)">60</button>
-        <button class="preset-btn" onclick="setPreset(120)">120</button>
-        <button class="preset-btn active" onclick="setPreset(180)">180</button>
       </div>
       <div class="custom-duration">
         <button class="dur-adj" onclick="adjustDuration(-5)">−</button>
-        <div class="dur-value" id="dur-value">180</div>
+        <div class="dur-value" id="dur-value">30</div>
         <button class="dur-adj" onclick="adjustDuration(5)">+</button>
       </div>
     </div>
     <div class="controls">
-      <button class="btn-main" onclick="handleOrbClick()"><span id="play-icon">▶</span></button>
+      <button class="btn-main" onclick="handleCountdownClick()"><span id="play-icon">▶</span></button>
       <button class="btn-secondary" id="btn-end" onclick="endSession()" style="display:none">finish</button>
     </div>
   </div>
@@ -250,8 +246,9 @@ window._showApp = showApp;
 </script>
 
 <script>
-let totalMinutes = 180;
+let totalMinutes = 30;
 let totalSeconds = 0;
+let currentMode = null; // null | 'stopwatch' | 'countdown'
 let sessionStartMs = null, pausedAtMs = null, pausedAccumMs = 0;
 let timerInterval = null, isRunning = false, isPaused = false;
 let isDimmed = false, dimTimeout = null;
@@ -299,10 +296,10 @@ function click(c, gain) {
 function loadLocal() { try { return JSON.parse(localStorage.getItem('shama_sessions')||'[]'); } catch{return[];} }
 function saveLocal(s) { localStorage.setItem('shama_sessions', JSON.stringify(s)); }
 
-async function logSession(durationSec, planned, complete) {
+async function logSession(durationSec, planned, complete, mode) {
   const now = new Date();
   const startDate = sessionStartMs ? new Date(sessionStartMs) : new Date(now - durationSec*1000);
-  const session = { id: Date.now(), date: startDate.toISOString(), endDate: now.toISOString(), durationSec, plannedSec: planned, complete };
+  const session = { id: Date.now(), date: startDate.toISOString(), endDate: now.toISOString(), durationSec, plannedSec: planned, complete, mode: mode || 'countdown' };
   const sessions = loadLocal(); sessions.unshift(session); saveLocal(sessions);
   try { if (window._saveSession) await window._saveSession(session); } catch(e){}
 }
@@ -359,13 +356,13 @@ window.setPreset=setPreset; window.adjustDuration=adjustDuration;
 function updateDurDisplay() {
   if (!isRunning&&!isPaused) {
     document.getElementById('dur-value').textContent=totalMinutes;
-    document.getElementById('time-display').textContent=fmt(totalMinutes*60);
   }
 }
 function updatePresetBtns() {
   document.querySelectorAll('.preset-btn').forEach(b=>b.classList.toggle('active',parseInt(b.textContent)===totalMinutes));
 }
 function fmt(sec) { return String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0'); }
+function fmtCountUp(sec) { return Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0'); }
 function pad(n) { return String(n).padStart(2,'0'); }
 
 function elapsedSec() {
@@ -381,21 +378,41 @@ function saveActiveState() {
   if (!sessionStartMs) { try { localStorage.removeItem(ACTIVE_KEY); } catch(e){} return; }
   try {
     localStorage.setItem(ACTIVE_KEY, JSON.stringify({
-      sessionStartMs, totalSeconds, pausedAtMs, pausedAccumMs, isRunning, isPaused
+      sessionStartMs, totalSeconds, pausedAtMs, pausedAccumMs, isRunning, isPaused, currentMode
     }));
   } catch(e){}
 }
 
 function handleOrbClick() {
   if (isDimmed){undim();return;}
-  if (!isRunning&&!isPaused) startSession();
+  if (currentMode === 'countdown') return; // mode lock
+  if (!isRunning&&!isPaused) startStopwatch();
   else if (isRunning) pauseSession();
   else if (isPaused) resumeSession();
 }
 window.handleOrbClick=handleOrbClick;
 
-function startSession() {
+function handleCountdownClick() {
+  if (isDimmed){undim();return;}
+  if (currentMode === 'stopwatch') return; // mode lock
+  if (!isRunning&&!isPaused) startCountdown();
+  else if (isRunning) pauseSession();
+  else if (isPaused) resumeSession();
+}
+window.handleCountdownClick=handleCountdownClick;
+
+function startStopwatch() {
   getCtx().resume();
+  currentMode='stopwatch';
+  totalSeconds=0;
+  sessionStartMs=Date.now(); pausedAtMs=null; pausedAccumMs=0;
+  isRunning=true; isPaused=false; endingFlag=false;
+  saveActiveState();
+  playBell('start'); updateTimerUI(); tick(); dimAfterDelay();
+}
+function startCountdown() {
+  getCtx().resume();
+  currentMode='countdown';
   totalSeconds=totalMinutes*60;
   sessionStartMs=Date.now(); pausedAtMs=null; pausedAccumMs=0;
   isRunning=true; isPaused=false; endingFlag=false;
@@ -408,28 +425,29 @@ function pauseSession() {
   isRunning=false; isPaused=true;
   saveActiveState();
   clearTimeout(dimTimeout); if(isDimmed)undim();
-  document.getElementById('play-icon').textContent='▶';
-  document.getElementById('orb-label').textContent='paused';
-  document.getElementById('orb').classList.remove('active');
+  updateTimerUI();
 }
 function resumeSession() {
   if (pausedAtMs){ pausedAccumMs += Date.now() - pausedAtMs; pausedAtMs=null; }
   isRunning=true; isPaused=false;
   saveActiveState();
-  document.getElementById('play-icon').textContent='⏸';
-  document.getElementById('orb-label').textContent='';
-  document.getElementById('orb').classList.add('active');
+  updateTimerUI();
   tick(); dimAfterDelay();
 }
 async function endSession() {
   if (endingFlag) return;
   endingFlag=true;
   const elapsed=elapsedSec();
-  const complete=elapsed>=totalSeconds;
+  const mode=currentMode;
+  const complete = mode==='stopwatch' ? true : (elapsed>=totalSeconds);
   clearInterval(timerInterval); clearTimeout(dimTimeout);
   if(isDimmed)undim();
-  if(elapsed>3){ await logSession(elapsed,totalSeconds,complete); showToast(complete?'Session complete ✓':'Session saved'); }
+  if(elapsed>3){
+    await logSession(elapsed, mode==='stopwatch'?null:totalSeconds, complete, mode);
+    showToast(complete?'Session complete ✓':'Session saved');
+  }
   isRunning=false; isPaused=false;
+  currentMode=null;
   sessionStartMs=null; pausedAtMs=null; pausedAccumMs=0;
   saveActiveState();
   resetTimerUI();
@@ -439,32 +457,47 @@ window.endSession=endSession;
 function tick() {
   clearInterval(timerInterval);
   timerInterval=setInterval(()=>{
-    const left=secondsLeft();
-    if(left<=0){
-      clearInterval(timerInterval);
-      playBell('end');
-      endSession();
-      return;
+    if (currentMode==='countdown') {
+      const left=secondsLeft();
+      if(left<=0){
+        clearInterval(timerInterval);
+        playBell('end');
+        endSession();
+        return;
+      }
     }
     updateTimerUI();
   },1000);
 }
 function updateTimerUI() {
-  const left = (isRunning||isPaused) ? secondsLeft() : totalMinutes*60;
-  const total = totalSeconds || (totalMinutes*60);
-  document.getElementById('time-display').textContent=fmt(left);
-  document.getElementById('ring').style.strokeDashoffset=729*(1-(left/total));
-  document.getElementById('orb').classList.toggle('active', isRunning);
-  document.getElementById('orb-label').textContent=isPaused?'paused':'';
-  document.getElementById('play-icon').textContent=isRunning?'⏸':'▶';
+  const td=document.getElementById('time-display');
+  const ring=document.getElementById('ring');
+  const orb=document.getElementById('orb');
+  const label=document.getElementById('orb-label');
+  const playIcon=document.getElementById('play-icon');
+  if (currentMode==='stopwatch') {
+    td.textContent=fmtCountUp(elapsedSec());
+    ring.style.strokeDashoffset='729';
+    orb.classList.toggle('active', isRunning);
+    label.textContent = isPaused ? '▶' : (isRunning ? '⏸' : 'DPE');
+    playIcon.textContent='▶';
+  } else if (currentMode==='countdown') {
+    const left=secondsLeft();
+    const total=totalSeconds || (totalMinutes*60);
+    td.textContent=fmt(left);
+    ring.style.strokeDashoffset=729*(1-(left/total));
+    orb.classList.toggle('active', isRunning);
+    label.textContent = isPaused ? 'paused' : '';
+    playIcon.textContent=isRunning?'⏸':'▶';
+  }
   document.getElementById('btn-end').style.display='inline-block';
   document.getElementById('duration-section').style.display='none';
 }
 function resetTimerUI() {
-  document.getElementById('time-display').textContent=fmt(totalMinutes*60);
+  document.getElementById('time-display').textContent='▶';
   document.getElementById('ring').style.strokeDashoffset='729';
   document.getElementById('orb').classList.remove('active');
-  document.getElementById('orb-label').textContent='';
+  document.getElementById('orb-label').textContent='DPE';
   document.getElementById('play-icon').textContent='▶';
   document.getElementById('btn-end').style.display='none';
   document.getElementById('duration-section').style.display='block';
@@ -568,9 +601,12 @@ function restoreActiveState() {
   sessionStartMs=s.sessionStartMs; totalSeconds=s.totalSeconds||0;
   pausedAtMs=s.pausedAtMs||null; pausedAccumMs=s.pausedAccumMs||0;
   isRunning=!!s.isRunning; isPaused=!!s.isPaused;
-  if (totalSeconds>0) totalMinutes=Math.max(5,Math.round(totalSeconds/60));
+  currentMode = s.currentMode || (totalSeconds>0 ? 'countdown' : null);
+  if (currentMode==='countdown' && totalSeconds>0) {
+    totalMinutes=Math.max(5,Math.round(totalSeconds/60));
+  }
   updateDurDisplay(); updatePresetBtns();
-  if (isRunning && elapsedSec()>=totalSeconds) {
+  if (currentMode==='countdown' && isRunning && elapsedSec()>=totalSeconds) {
     playBell('end');
     endSession();
     return;
@@ -583,7 +619,7 @@ function restoreActiveState() {
 
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'visible') return;
-  if (isRunning && elapsedSec() >= totalSeconds) {
+  if (currentMode==='countdown' && isRunning && elapsedSec() >= totalSeconds) {
     playBell('end');
     endSession();
   } else if (isRunning) {
