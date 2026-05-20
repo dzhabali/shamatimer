@@ -113,6 +113,55 @@
   .empty-log-icon { font-size: 32px; margin-bottom: 12px; opacity: 0.4; }
   .empty-log p { font-size: 13px; letter-spacing: 0.06em; }
 
+  /* CALENDAR */
+  #screen-calendar { padding: 20px 24px; gap: 0; }
+  .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .cal-arrow { background: none; border: 1px solid var(--border); color: var(--text2); width: 32px; height: 32px; border-radius: 50%; font-size: 18px; cursor: pointer; font-family: 'Inter', sans-serif; display: flex; align-items: center; justify-content: center; line-height: 1; padding: 0 0 2px; transition: all 0.2s; }
+  .cal-arrow:hover { color: var(--accent2); border-color: rgba(122,173,122,0.35); }
+  .cal-month-lbl { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 300; font-style: italic; color: var(--text); }
+  .cal-stat { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 18px; display: flex; align-items: baseline; justify-content: space-between; }
+  .cal-stat-label { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text3); }
+  .cal-stat-value { font-family: 'Cormorant Garamond', serif; font-size: 26px; font-weight: 300; color: var(--text); }
+  .cal-stat-unit { font-size: 13px; color: var(--text3); margin-left: 2px; }
+  .cal-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 6px; }
+  .cal-weekdays > div { font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text3); text-align: center; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .cal-cell { aspect-ratio: 1; border: 1px solid var(--border); border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: transparent; }
+  .cal-cell.empty { opacity: 0; pointer-events: none; }
+  .cal-cell.today { border-color: rgba(122,173,122,0.55); }
+  .cal-cell .cal-dn { font-size: 10px; color: var(--text3); letter-spacing: 0.04em; }
+  .cal-cell .cal-min { font-family: 'Cormorant Garamond', serif; font-size: 14px; font-weight: 300; color: var(--text2); line-height: 1; }
+  .cal-cell.lvl-0 .cal-min { display: none; }
+  .cal-cell.lvl-1 { background: rgba(122,173,122,0.10); }
+  .cal-cell.lvl-2 { background: rgba(122,173,122,0.22); }
+  .cal-cell.lvl-3 { background: rgba(122,173,122,0.38); }
+  .cal-cell.lvl-4 { background: rgba(122,173,122,0.58); }
+  .cal-cell.lvl-5 { background: rgba(122,173,122,0.85); }
+  .cal-cell.lvl-4 .cal-min, .cal-cell.lvl-5 .cal-min { color: var(--text); }
+  .cal-cell.lvl-5 .cal-dn { color: var(--text2); }
+
+  /* HISTORY add/delete */
+  .log-header-right { display: flex; align-items: center; gap: 10px; }
+  .log-add { background: none; border: 1px solid var(--border); color: var(--text2); width: 28px; height: 28px; border-radius: 50%; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; padding: 0 0 2px; transition: all 0.2s; font-family: 'Inter', sans-serif; }
+  .log-add:hover { color: var(--accent2); border-color: rgba(122,173,122,0.35); }
+  .session-item { position: relative; }
+  .session-del { position: absolute; top: 6px; right: 6px; background: none; border: none; color: var(--text3); font-size: 16px; line-height: 1; cursor: pointer; padding: 4px 8px; border-radius: 50%; transition: all 0.2s; opacity: 0.4; }
+  .session-del:hover { color: var(--danger); opacity: 1; background: rgba(200,122,122,0.08); }
+
+  /* MODAL */
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 600; }
+  .modal.hidden { display: none; }
+  .modal-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 12px; min-width: 260px; width: 100%; max-width: 320px; }
+  .modal-title { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 300; font-style: italic; color: var(--text); margin-bottom: 4px; }
+  .modal-label { display: flex; flex-direction: column; gap: 4px; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text3); }
+  .modal-input { background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 300; padding: 10px 14px; border-radius: 8px; outline: none; transition: border-color 0.2s; color-scheme: dark; }
+  .modal-input:focus { border-color: rgba(122,173,122,0.4); }
+  .modal-actions { display: flex; gap: 10px; margin-top: 6px; }
+  .modal-btn { flex: 1; background: none; border: 1px solid var(--border); color: var(--text2); font-family: 'Inter', sans-serif; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+  .modal-btn:hover { color: var(--text); border-color: rgba(122,173,122,0.3); }
+  .modal-btn-primary { background: rgba(122,173,122,0.12); border-color: rgba(122,173,122,0.3); color: var(--accent2); }
+  .modal-btn-primary:hover { background: rgba(122,173,122,0.2); }
+
   #toast { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--surface); border: 1px solid var(--border); color: var(--text2); font-size: 12px; letter-spacing: 0.08em; padding: 10px 20px; border-radius: 20px; opacity: 0; transition: all 0.4s; pointer-events: none; white-space: nowrap; z-index: 999; }
   #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 </style>
@@ -140,6 +189,7 @@
 <div id="app">
   <nav>
     <button class="nav-btn active" onclick="showScreen('timer', event)">Timer</button>
+    <button class="nav-btn" onclick="showScreen('calendar', event)">Calendar</button>
     <button class="nav-btn" onclick="showScreen('log', event)">History</button>
     <button class="nav-user" id="nav-user" onclick="doSignOut()">sign out</button>
   </nav>
@@ -175,14 +225,45 @@
     </div>
   </div>
 
+  <div id="screen-calendar" class="screen">
+    <div class="cal-nav">
+      <button class="cal-arrow" id="cal-prev" aria-label="Previous month">‹</button>
+      <div class="cal-month-lbl" id="cal-month">—</div>
+      <button class="cal-arrow" id="cal-next" aria-label="Next month">›</button>
+    </div>
+    <div class="cal-stat">
+      <div class="cal-stat-label">avg per active day</div>
+      <div class="cal-stat-value" id="cal-avg">— <span class="cal-stat-unit">min</span></div>
+    </div>
+    <div class="cal-weekdays">
+      <div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div><div>Sun</div>
+    </div>
+    <div class="cal-grid" id="cal-grid"></div>
+  </div>
+
   <div id="screen-log" class="screen">
     <div class="log-header">
       <div class="log-title">History</div>
-      <div class="log-stats" id="log-stats"></div>
+      <div class="log-header-right">
+        <div class="log-stats" id="log-stats"></div>
+        <button class="log-add" onclick="openAddSession()" aria-label="Add session">+</button>
+      </div>
     </div>
     <div class="summary-cards" id="summary-cards"></div>
     <div class="sync-note" id="sync-note"></div>
     <div class="sessions-list" id="sessions-list"></div>
+  </div>
+</div>
+
+<div id="add-modal" class="modal hidden">
+  <div class="modal-card">
+    <div class="modal-title">Add session</div>
+    <label class="modal-label">Date<input class="modal-input" type="date" id="add-date" /></label>
+    <label class="modal-label">Minutes<input class="modal-input" type="number" id="add-min" min="1" max="600" placeholder="e.g. 45" /></label>
+    <div class="modal-actions">
+      <button class="modal-btn" onclick="closeAddSession()">Cancel</button>
+      <button class="modal-btn modal-btn-primary" onclick="submitAddSession()">Save</button>
+    </div>
   </div>
 </div>
 
@@ -191,7 +272,7 @@
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, collection, addDoc, getDocs, query, orderBy, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFirestore, collection, addDoc, getDocs, query, orderBy, serverTimestamp, doc, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const app = initializeApp({
   apiKey: "AIzaSyBBNNi5VjSTDmxjheaYdpzMqMZHfzPaHEo",
@@ -222,16 +303,22 @@ window._getUser = () => currentUser;
 window._isGuest = () => guestMode;
 
 window._saveSession = async (session) => {
-  if (guestMode || !currentUser) return;
+  if (guestMode || !currentUser) return null;
   const col = collection(db, 'users', currentUser.uid, 'sessions');
-  await addDoc(col, { ...session, createdAt: serverTimestamp() });
+  const ref = await addDoc(col, { ...session, createdAt: serverTimestamp() });
+  return ref.id;
+};
+
+window._deleteSession = async (fid) => {
+  if (guestMode || !currentUser || !fid) return;
+  await deleteDoc(doc(db, 'users', currentUser.uid, 'sessions', fid));
 };
 
 window._loadSessions = async () => {
   if (guestMode || !currentUser) return null;
   const col = collection(db, 'users', currentUser.uid, 'sessions');
   const snap = await getDocs(query(col, orderBy('createdAt', 'desc')));
-  return snap.docs.map(d => d.data());
+  return snap.docs.map(d => ({ ...d.data(), firebaseDocId: d.id }));
 };
 
 window._setGuest = (v) => { guestMode = v; };
@@ -301,7 +388,12 @@ async function logSession(durationSec, planned, complete, mode) {
   const startDate = sessionStartMs ? new Date(sessionStartMs) : new Date(now - durationSec*1000);
   const session = { id: Date.now(), date: startDate.toISOString(), endDate: now.toISOString(), durationSec, plannedSec: planned, complete, mode: mode || 'countdown' };
   const sessions = loadLocal(); sessions.unshift(session); saveLocal(sessions);
-  try { if (window._saveSession) await window._saveSession(session); } catch(e){}
+  try {
+    if (window._saveSession) {
+      const fid = await window._saveSession(session);
+      if (fid) { session.firebaseDocId = fid; saveLocal(sessions); }
+    }
+  } catch(e){}
 }
 
 // AUTH
@@ -516,6 +608,7 @@ function showScreen(name,e) {
   document.getElementById('screen-'+name).classList.add('active');
   if(e)e.target.classList.add('active');
   if(name==='log')renderLog();
+  if(name==='calendar')renderCalendar();
 }
 window.showScreen=showScreen;
 
@@ -567,7 +660,9 @@ async function renderLog() {
   const dy=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   list.innerHTML=sessions.map(s=>{
     const st=new Date(s.date),en=new Date(s.endDate),dur=Math.round(s.durationSec/60);
+    const fid=(s.firebaseDocId||'').replace(/'/g,"\\'");
     return `<div class="session-item ${s.complete?'':'incomplete'}">
+      <button class="session-del" onclick="deleteSession(${s.id},'${fid}')" aria-label="Delete session">×</button>
       <div>
         <div class="session-date">${dy[st.getDay()]}, ${st.getDate()} ${mo[st.getMonth()]}</div>
         <div class="session-time-range">${pad(st.getHours())}:${pad(st.getMinutes())} — ${pad(en.getHours())}:${pad(en.getMinutes())}</div>
@@ -579,6 +674,126 @@ async function renderLog() {
     </div>`;
   }).join('');
 }
+
+async function deleteSession(id, fid) {
+  if (!confirm('Delete this session?')) return;
+  const sessions = loadLocal().filter(s => s.id !== id);
+  saveLocal(sessions);
+  try { if (fid && window._deleteSession) await window._deleteSession(fid); } catch(e){}
+  renderLog();
+  if (document.getElementById('screen-calendar').classList.contains('active')) renderCalendar();
+}
+window.deleteSession=deleteSession;
+
+// CALENDAR
+let calYear, calMonth;
+(function initCalDate(){ const d=new Date(); calYear=d.getFullYear(); calMonth=d.getMonth(); })();
+
+async function getSessionsByDay() {
+  let sessions = loadLocal();
+  if (window._loadSessions && !window._isGuest()) {
+    try {
+      const cloud = await window._loadSessions();
+      if (cloud) {
+        const map = new Map();
+        for (const s of cloud) if (s && s.id!=null) map.set(s.id, s);
+        for (const s of sessions) if (s && s.id!=null && !map.has(s.id)) map.set(s.id, s);
+        sessions = Array.from(map.values());
+      }
+    } catch(e){}
+  }
+  const byDay = {};
+  for (const s of sessions) {
+    if (!s.date || !s.durationSec) continue;
+    const key = new Date(s.date).toISOString().slice(0,10);
+    byDay[key] = (byDay[key]||0) + s.durationSec;
+  }
+  return byDay;
+}
+
+function calLevel(min) {
+  if (min<=0) return 0;
+  if (min<=20) return 1;
+  if (min<=40) return 2;
+  if (min<=59) return 3;
+  if (min<=90) return 4;
+  return 5;
+}
+
+async function renderCalendar() {
+  const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  document.getElementById('cal-month').textContent = mo[calMonth] + ' ' + calYear;
+  const byDay = await getSessionsByDay();
+  const first = new Date(calYear, calMonth, 1);
+  const startDow = (first.getDay()+6) % 7; // Mon=0..Sun=6
+  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+  const todayKey = new Date().toISOString().slice(0,10);
+  let html = '';
+  for (let i=0;i<startDow;i++) html += '<div class="cal-cell empty"></div>';
+  let sumMin = 0, daysWithData = 0;
+  for (let d=1; d<=daysInMonth; d++) {
+    const key = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const sec = byDay[key] || 0;
+    const min = Math.round(sec/60);
+    if (min>0) { sumMin += min; daysWithData++; }
+    const lvl = calLevel(min);
+    const todayCls = key === todayKey ? ' today' : '';
+    html += `<div class="cal-cell lvl-${lvl}${todayCls}"><div class="cal-dn">${d}</div><div class="cal-min">${min}</div></div>`;
+  }
+  document.getElementById('cal-grid').innerHTML = html;
+  const avg = daysWithData ? Math.round(sumMin / daysWithData) : 0;
+  document.getElementById('cal-avg').innerHTML = avg ? `${avg} <span class="cal-stat-unit">min</span>` : '— <span class="cal-stat-unit">min</span>';
+}
+
+document.getElementById('cal-prev').addEventListener('click', () => {
+  calMonth--; if (calMonth<0) { calMonth=11; calYear--; }
+  renderCalendar();
+});
+document.getElementById('cal-next').addEventListener('click', () => {
+  calMonth++; if (calMonth>11) { calMonth=0; calYear++; }
+  renderCalendar();
+});
+
+// ADD SESSION
+function openAddSession() {
+  document.getElementById('add-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('add-min').value = '';
+  document.getElementById('add-modal').classList.remove('hidden');
+}
+function closeAddSession() {
+  document.getElementById('add-modal').classList.add('hidden');
+}
+async function submitAddSession() {
+  const date = document.getElementById('add-date').value;
+  const minStr = document.getElementById('add-min').value;
+  const min = parseInt(minStr, 10);
+  if (!date || !min || min<=0) { showToast('Enter date and minutes'); return; }
+  const start = new Date(date + 'T12:00:00');
+  const end = new Date(start.getTime() + min*60*1000);
+  const session = {
+    id: Date.now(),
+    date: start.toISOString(),
+    endDate: end.toISOString(),
+    durationSec: min*60,
+    plannedSec: null,
+    complete: true,
+    mode: 'manual'
+  };
+  const sessions = loadLocal(); sessions.unshift(session); saveLocal(sessions);
+  try {
+    if (window._saveSession) {
+      const fid = await window._saveSession(session);
+      if (fid) { session.firebaseDocId = fid; saveLocal(sessions); }
+    }
+  } catch(e){}
+  closeAddSession();
+  showToast('Session added');
+  renderLog();
+  if (document.getElementById('screen-calendar').classList.contains('active')) renderCalendar();
+}
+window.openAddSession=openAddSession;
+window.closeAddSession=closeAddSession;
+window.submitAddSession=submitAddSession;
 
 function calcStreak(sessions) {
   if(!sessions.length)return 0;
