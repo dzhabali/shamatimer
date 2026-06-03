@@ -17,7 +17,12 @@
 - Кнопка `⤓` в шапке History → модал импорта **JSON**-бэкапа сессий. Чекбоксы `Include yoga & healing` (off) и `Skip sessions under 1 min` (on), превью `N new / M existing / K in file`.
 - **Дедуп** по `id` против local + cloud → идемпотентно (повторный импорт ничего не плодит).
 - Запись локально (upsert) + в Firestore пачками (`writeBatch`, детерминированный doc-id `it_<id>` — ре-импорт перезаписывает).
-- `tools/insight_to_shama.py` — конвертер стандартного экспорта Insight Timer (`InsightTimerLogs.csv` + `InsightTimerJournal.txt`) в этот JSON: джойнит заметки журнала к сессиям по `(старт до минуты, длительность)`, чистит потерянные при экспорте символы. Импортированы ~1.5k сессий за 2016–2026 с историческими заметками.
+- `tools/insight_to_shama.py` — конвертер стандартного экспорта Insight Timer (`InsightTimerLogs.csv` + `InsightTimerJournal.txt`) в этот JSON: джойнит заметки журнала к сессиям по `(старт до минуты, длительность)`, чистит потерянные при экспорте символы. Импортированы 1527 медитаций за 2016–2026, у 1303 — исторические заметки.
+
+### Фикс: правила Firestore (синхронизация перестала работать)
+
+- Дефолтные правила «test mode» истекли 29.05.2026 (`allow read, write: if request.time < timestamp.date(2026, 5, 29)`) → облако закрылось на `deny all`, синк молча отвалился (приложение показывало локальный кэш).
+- Прописаны нормальные правила — каждый пользователь читает/пишет только свой путь `users/{uid}/...`. Сохранены в [`firestore.rules`](firestore.rules) (+ `firebase.json`, `.firebaserc` для `firebase deploy --only firestore:rules`).
 
 ## 2026-05-20
 
