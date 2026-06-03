@@ -161,6 +161,15 @@
   .modal-btn:hover { color: var(--text); border-color: rgba(122,173,122,0.3); }
   .modal-btn-primary { background: rgba(122,173,122,0.12); border-color: rgba(122,173,122,0.3); color: var(--accent2); }
   .modal-btn-primary:hover { background: rgba(122,173,122,0.2); }
+  .modal-btn:disabled { opacity: 0.5; cursor: default; }
+  textarea.modal-input { resize: vertical; min-height: 96px; font-family: 'Inter', sans-serif; line-height: 1.5; }
+  .modal-check { flex-direction: row; align-items: center; gap: 8px; font-size: 11px; letter-spacing: 0.04em; text-transform: none; color: var(--text2); cursor: pointer; }
+  .modal-check input { accent-color: var(--accent); width: 15px; height: 15px; flex: none; }
+  .detail-meta { font-size: 12px; color: var(--text2); letter-spacing: 0.04em; line-height: 1.55; }
+
+  /* clickable session + note marker */
+  .session-item { cursor: pointer; }
+  .session-note-mark { color: var(--accent); margin-left: 5px; opacity: 0.85; }
 
   #toast { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--surface); border: 1px solid var(--border); color: var(--text2); font-size: 12px; letter-spacing: 0.08em; padding: 10px 20px; border-radius: 20px; opacity: 0; transition: all 0.4s; pointer-events: none; white-space: nowrap; z-index: 999; }
   #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
@@ -246,6 +255,7 @@
       <div class="log-title">History</div>
       <div class="log-header-right">
         <div class="log-stats" id="log-stats"></div>
+        <button class="log-add" onclick="openImport()" aria-label="Import sessions" title="Import history">⤓</button>
         <button class="log-add" onclick="openAddSession()" aria-label="Add session">+</button>
       </div>
     </div>
@@ -267,12 +277,38 @@
   </div>
 </div>
 
+<div id="detail-modal" class="modal hidden">
+  <div class="modal-card">
+    <div class="modal-title">Session</div>
+    <div class="detail-meta" id="detail-meta"></div>
+    <label class="modal-label">Note<textarea class="modal-input" id="detail-note" rows="5" placeholder="Add a note to this session…"></textarea></label>
+    <div class="modal-actions">
+      <button class="modal-btn" onclick="closeSessionDetail()">Close</button>
+      <button class="modal-btn modal-btn-primary" onclick="saveSessionNote()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="import-modal" class="modal hidden">
+  <div class="modal-card">
+    <div class="modal-title">Import history</div>
+    <label class="modal-label">JSON file<input class="modal-input" type="file" id="import-file" accept=".json,application/json" /></label>
+    <label class="modal-check"><input type="checkbox" id="import-yoga" /> Include yoga &amp; healing</label>
+    <label class="modal-check"><input type="checkbox" id="import-skip-short" checked /> Skip sessions under 1 min</label>
+    <div class="detail-meta" id="import-preview"></div>
+    <div class="modal-actions">
+      <button class="modal-btn" onclick="closeImport()">Cancel</button>
+      <button class="modal-btn modal-btn-primary" id="import-go" onclick="runImport()">Import</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, collection, addDoc, getDocs, query, orderBy, serverTimestamp, doc, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFirestore, collection, addDoc, getDocs, query, orderBy, serverTimestamp, doc, deleteDoc, updateDoc, writeBatch } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const app = initializeApp({
   apiKey: "AIzaSyBBNNi5VjSTDmxjheaYdpzMqMZHfzPaHEo",
@@ -319,6 +355,30 @@ window._loadSessions = async () => {
   const col = collection(db, 'users', currentUser.uid, 'sessions');
   const snap = await getDocs(query(col, orderBy('createdAt', 'desc')));
   return snap.docs.map(d => ({ ...d.data(), firebaseDocId: d.id }));
+};
+
+window._updateSession = async (fid, fields) => {
+  if (guestMode || !currentUser || !fid) return;
+  await updateDoc(doc(db, 'users', currentUser.uid, 'sessions', fid), fields);
+};
+
+// Bulk import: deterministic doc id (passed as firebaseDocId) so re-import overwrites, never duplicates.
+window._importBatch = async (sessions) => {
+  if (guestMode || !currentUser || !sessions.length) return 0;
+  const col = collection(db, 'users', currentUser.uid, 'sessions');
+  let written = 0;
+  for (let i = 0; i < sessions.length; i += 400) {
+    const chunk = sessions.slice(i, i + 400);
+    const batch = writeBatch(db);
+    for (const s of chunk) {
+      const { firebaseDocId, ...data } = s;
+      batch.set(doc(col, firebaseDocId), { ...data, createdAt: serverTimestamp() });
+    }
+    await batch.commit();
+    written += chunk.length;
+    if (window._importProgress) window._importProgress(written, sessions.length);
+  }
+  return written;
 };
 
 window._setGuest = (v) => { guestMode = v; };
@@ -613,6 +673,7 @@ function showScreen(name,e) {
 window.showScreen=showScreen;
 
 // LOG
+let lastRenderedSessions = [];
 async function renderLog() {
   const list=document.getElementById('sessions-list');
   const sumEl=document.getElementById('summary-cards');
@@ -658,13 +719,15 @@ async function renderLog() {
 
   const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const dy=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  lastRenderedSessions = sessions;
   list.innerHTML=sessions.map(s=>{
     const st=new Date(s.date),en=new Date(s.endDate),dur=Math.round(s.durationSec/60);
     const fid=(s.firebaseDocId||'').replace(/'/g,"\\'");
-    return `<div class="session-item ${s.complete?'':'incomplete'}">
-      <button class="session-del" onclick="deleteSession(${s.id},'${fid}')" aria-label="Delete session">×</button>
+    const hasNote=!!(s.note&&s.note.trim());
+    return `<div class="session-item ${s.complete?'':'incomplete'}" onclick="openSessionDetail(${s.id})">
+      <button class="session-del" onclick="event.stopPropagation();deleteSession(${s.id},'${fid}')" aria-label="Delete session">×</button>
       <div>
-        <div class="session-date">${dy[st.getDay()]}, ${st.getDate()} ${mo[st.getMonth()]}</div>
+        <div class="session-date">${dy[st.getDay()]}, ${st.getDate()} ${mo[st.getMonth()]}${hasNote?' <span class="session-note-mark">✎</span>':''}</div>
         <div class="session-time-range">${pad(st.getHours())}:${pad(st.getMinutes())} — ${pad(en.getHours())}:${pad(en.getMinutes())}</div>
       </div>
       <div class="session-right">
@@ -795,6 +858,129 @@ window.openAddSession=openAddSession;
 window.closeAddSession=closeAddSession;
 window.submitAddSession=submitAddSession;
 
+// SESSION DETAIL / NOTE
+let detailSessionId = null;
+function openSessionDetail(id) {
+  const s = (lastRenderedSessions||[]).find(x => x.id === id);
+  if (!s) return;
+  detailSessionId = id;
+  const st = new Date(s.date), en = new Date(s.endDate), dur = Math.round(s.durationSec/60);
+  const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const dy=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const act = (s.activity && s.activity.toLowerCase() !== 'meditation') ? ' · ' + s.activity : '';
+  document.getElementById('detail-meta').innerHTML =
+    `${dy[st.getDay()]}, ${st.getDate()} ${mo[st.getMonth()]} ${st.getFullYear()}<br>` +
+    `${pad(st.getHours())}:${pad(st.getMinutes())} — ${pad(en.getHours())}:${pad(en.getMinutes())} · ${dur} min${act}`;
+  document.getElementById('detail-note').value = s.note || '';
+  document.getElementById('detail-modal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('detail-note').focus(), 50);
+}
+function closeSessionDetail() {
+  document.getElementById('detail-modal').classList.add('hidden');
+  detailSessionId = null;
+}
+async function saveSessionNote() {
+  if (detailSessionId == null) return;
+  const note = document.getElementById('detail-note').value.trim();
+  const sessions = loadLocal();
+  let target = sessions.find(s => s.id === detailSessionId);
+  if (target) {
+    target.note = note;
+  } else {
+    // cloud-only session not in localStorage — upsert it locally with the note
+    const fromRender = (lastRenderedSessions||[]).find(s => s.id === detailSessionId);
+    if (fromRender) { target = { ...fromRender, note }; sessions.unshift(target); }
+  }
+  saveLocal(sessions);
+  const r = (lastRenderedSessions||[]).find(s => s.id === detailSessionId);
+  if (r) r.note = note;
+  try {
+    if (target && target.firebaseDocId && window._updateSession) {
+      await window._updateSession(target.firebaseDocId, { note });
+    }
+  } catch(e){}
+  closeSessionDetail();
+  showToast('Note saved');
+  renderLog();
+}
+window.openSessionDetail=openSessionDetail;
+window.closeSessionDetail=closeSessionDetail;
+window.saveSessionNote=saveSessionNote;
+
+// IMPORT
+let importParsed = null;
+function openImport() {
+  importParsed = null;
+  document.getElementById('import-file').value = '';
+  document.getElementById('import-yoga').checked = false;
+  document.getElementById('import-skip-short').checked = true;
+  document.getElementById('import-preview').textContent = '';
+  document.getElementById('import-modal').classList.remove('hidden');
+}
+function closeImport() {
+  document.getElementById('import-modal').classList.add('hidden');
+}
+function applyImportFilters(arr) {
+  const yoga = document.getElementById('import-yoga').checked;
+  const skipShort = document.getElementById('import-skip-short').checked;
+  return arr.filter(s => {
+    const act = (s.activity || 'meditation').toLowerCase();
+    if (!yoga && act !== 'meditation') return false;
+    if (skipShort && (s.durationSec || 0) < 60) return false;
+    return true;
+  });
+}
+async function existingIds() {
+  const ids = new Set(loadLocal().map(s => s.id));
+  if (window._loadSessions && !window._isGuest()) {
+    try { const cloud = await window._loadSessions(); if (cloud) for (const c of cloud) ids.add(c.id); } catch(e){}
+  }
+  return ids;
+}
+async function updateImportPreview() {
+  const preview = document.getElementById('import-preview');
+  if (!importParsed) { preview.textContent = ''; return; }
+  const filtered = applyImportFilters(importParsed);
+  const ids = await existingIds();
+  const fresh = filtered.filter(s => !ids.has(s.id)).length;
+  preview.innerHTML = `${fresh} new · ${filtered.length - fresh} already imported · ${importParsed.length} in file`;
+}
+async function runImport() {
+  if (!importParsed) { showToast('Choose a JSON file'); return; }
+  const goBtn = document.getElementById('import-go');
+  const filtered = applyImportFilters(importParsed);
+  const ids = await existingIds();
+  const fresh = filtered.filter(s => !ids.has(s.id)).map(s => ({
+    id: s.id, date: s.date, endDate: s.endDate, durationSec: s.durationSec,
+    plannedSec: s.plannedSec ?? null, complete: s.complete !== false,
+    mode: s.mode || 'imported', source: s.source || 'insight-timer',
+    activity: s.activity || 'meditation', note: s.note || '',
+    firebaseDocId: 'it_' + s.id
+  }));
+  if (!fresh.length) { showToast('Nothing new to import'); return; }
+  goBtn.disabled = true; goBtn.textContent = 'Importing…';
+  // local upsert
+  const localMap = new Map(loadLocal().map(s => [s.id, s]));
+  for (const s of fresh) localMap.set(s.id, s);
+  saveLocal(Array.from(localMap.values()).sort((a,b)=>new Date(b.date)-new Date(a.date)));
+  // cloud batch
+  let cloudCount = 0;
+  try {
+    if (window._importBatch && !window._isGuest()) {
+      window._importProgress = (done, total) => { goBtn.textContent = `Importing… ${done}/${total}`; };
+      cloudCount = await window._importBatch(fresh);
+    }
+  } catch(e){ showToast('Cloud sync failed — saved locally'); }
+  goBtn.disabled = false; goBtn.textContent = 'Import';
+  closeImport();
+  showToast(`Imported ${fresh.length} sessions${cloudCount ? ' (synced)' : ''}`);
+  renderLog();
+  if (document.getElementById('screen-calendar').classList.contains('active')) renderCalendar();
+}
+window.openImport=openImport;
+window.closeImport=closeImport;
+window.runImport=runImport;
+
 function calcStreak(sessions) {
   if(!sessions.length)return 0;
   const dates=[...new Set(sessions.map(s=>new Date(s.date).toDateString()))];
@@ -842,6 +1028,26 @@ document.addEventListener('visibilitychange', () => {
     tick();
   }
 });
+
+document.getElementById('import-file').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) { importParsed = null; updateImportPreview(); return; }
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      importParsed = Array.isArray(data) ? data : (data.sessions || []);
+    } catch(err) {
+      importParsed = null;
+      document.getElementById('import-preview').textContent = 'Invalid JSON file';
+      return;
+    }
+    updateImportPreview();
+  };
+  reader.readAsText(file);
+});
+document.getElementById('import-yoga').addEventListener('change', updateImportPreview);
+document.getElementById('import-skip-short').addEventListener('change', updateImportPreview);
 
 updatePresetBtns();
 restoreActiveState();
