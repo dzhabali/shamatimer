@@ -388,6 +388,7 @@ function showApp(email) {
   document.getElementById('auth-screen').classList.add('hidden');
   const label = guestMode ? 'guest' : email.split('@')[0];
   document.getElementById('nav-user').textContent = label;
+  if (window._syncPending) window._syncPending();
 }
 window._showApp = showApp;
 </script>
@@ -455,6 +456,32 @@ async function logSession(durationSec, planned, complete, mode) {
     }
   } catch(e){}
 }
+
+// Re-sync local sessions that never reached the cloud (created offline, in guest mode,
+// or while the database was unreachable). Runs on app open / tab focus; self-heals.
+let syncingPending = false;
+async function syncPendingLocal() {
+  if (syncingPending) return;
+  const u = window._getUser ? window._getUser() : null;
+  if (!window._saveSession || (window._isGuest && window._isGuest()) || !u) return;
+  if (!loadLocal().some(s => s && !s.firebaseDocId)) return;
+  syncingPending = true;
+  try {
+    const pending = loadLocal().filter(s => s && !s.firebaseDocId);
+    for (const p of pending) {
+      let fid;
+      try { fid = await window._saveSession(p); }
+      catch(e) { break; } // still offline — heal on next open
+      if (!fid) continue;
+      const cur = loadLocal();
+      const t = cur.find(s => s.id === p.id);
+      if (t && !t.firebaseDocId) { t.firebaseDocId = fid; saveLocal(cur); }
+    }
+  } finally {
+    syncingPending = false;
+  }
+}
+window._syncPending = syncPendingLocal;
 
 // AUTH
 function switchTab(mode) {
@@ -1020,6 +1047,7 @@ function restoreActiveState() {
 
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'visible') return;
+  if (window._syncPending) window._syncPending();
   if (currentMode==='countdown' && isRunning && elapsedSec() >= totalSeconds) {
     playBell('end');
     endSession();

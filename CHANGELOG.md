@@ -24,6 +24,10 @@
 - Дефолтные правила «test mode» истекли 29.05.2026 (`allow read, write: if request.time < timestamp.date(2026, 5, 29)`) → облако закрылось на `deny all`, синк молча отвалился (приложение показывало локальный кэш).
 - Прописаны нормальные правила — каждый пользователь читает/пишет только свой путь `users/{uid}/...`. Сохранены в [`firestore.rules`](firestore.rules) (+ `firebase.json`, `.firebaserc` для `firebase deploy --only firestore:rules`).
 
+### Авто-досинк офлайн-сессий
+
+- `syncPendingLocal()` — при открытии приложения и при возврате фокуса находит локальные сессии без `firebaseDocId` (созданные офлайн, в guest-режиме или пока облако было недоступно) и допушивает их в Firestore, проставляя `firebaseDocId`. Self-heal: раньше офлайн-сессия оставалась только на устройстве и не доезжала в облако/на другие девайсы.
+
 ## 2026-05-20
 
 ### Calendar tab, ручное добавление и удаление сессий ([fca24bc](https://github.com/dzhabali/shamatimer/commit/fca24bc))
