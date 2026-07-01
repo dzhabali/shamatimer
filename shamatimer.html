@@ -123,9 +123,10 @@
   .cal-stat-label { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text3); }
   .cal-stat-value { font-family: 'Cormorant Garamond', serif; font-size: 26px; font-weight: 300; color: var(--text); }
   .cal-stat-unit { font-size: 13px; color: var(--text3); margin-left: 2px; }
-  .cal-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 6px; }
+  .cal-weekdays { display: grid; grid-template-columns: repeat(7, 1fr) 28px; gap: 4px; margin-bottom: 6px; }
   .cal-weekdays > div { font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text3); text-align: center; }
-  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr) 28px; gap: 4px; }
+  .cal-week-avg { display: flex; align-items: center; justify-content: center; font-family: 'Cormorant Garamond', serif; font-size: 13px; font-weight: 300; color: #7aafc8; border-left: 1px solid var(--border); }
   .cal-cell { aspect-ratio: 1; border: 1px solid var(--border); border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: transparent; }
   .cal-cell.empty { opacity: 0; pointer-events: none; }
   .cal-cell.today { border-color: rgba(122,173,122,0.55); }
@@ -245,7 +246,7 @@
       <div class="cal-stat-value" id="cal-avg">— <span class="cal-stat-unit">min</span></div>
     </div>
     <div class="cal-weekdays">
-      <div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div><div>Sun</div>
+      <div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div><div>Sun</div><div>wk</div>
     </div>
     <div class="cal-grid" id="cal-grid"></div>
   </div>
@@ -819,17 +820,35 @@ async function renderCalendar() {
   const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
   const todayKey = new Date().toISOString().slice(0,10);
   let html = '';
-  for (let i=0;i<startDow;i++) html += '<div class="cal-cell empty"></div>';
   let sumMin = 0, daysWithData = 0;
-  for (let d=1; d<=daysInMonth; d++) {
+  let pos = 0, weekMin = 0, weekActive = 0;
+
+  const flushWeekAvg = () => {
+    const wAvg = weekActive ? Math.round(weekMin / weekActive) : 0;
+    html += `<div class="cal-week-avg">${wAvg || '—'}</div>`;
+    weekMin = 0; weekActive = 0;
+  };
+
+  for (let i = 0; i < startDow; i++) {
+    html += '<div class="cal-cell empty"></div>';
+    if (++pos % 7 === 0) flushWeekAvg();
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
     const key = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const sec = byDay[key] || 0;
     const min = Math.round(sec/60);
-    if (min>0) { sumMin += min; daysWithData++; }
+    if (min > 0) { sumMin += min; daysWithData++; weekMin += min; weekActive++; }
     const lvl = calLevel(min);
     const todayCls = key === todayKey ? ' today' : '';
     html += `<div class="cal-cell lvl-${lvl}${todayCls}"><div class="cal-dn">${d}</div><div class="cal-min">${min}</div></div>`;
+    if (++pos % 7 === 0) flushWeekAvg();
   }
+  const rem = pos % 7;
+  if (rem > 0) {
+    for (let i = rem; i < 7; i++) html += '<div class="cal-cell empty"></div>';
+    flushWeekAvg();
+  }
+
   document.getElementById('cal-grid').innerHTML = html;
   const avg = daysWithData ? Math.round(sumMin / daysWithData) : 0;
   document.getElementById('cal-avg').innerHTML = avg ? `${avg} <span class="cal-stat-unit">min</span>` : '— <span class="cal-stat-unit">min</span>';
