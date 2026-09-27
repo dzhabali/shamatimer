@@ -199,7 +199,7 @@
 <!-- APP -->
 <div id="app">
   <nav>
-    <span class="nav-ver">v1.35</span>
+    <span class="nav-ver">v1.40</span>
     <button class="nav-btn active" onclick="showScreen('timer', event)">Timer</button>
     <button class="nav-btn" onclick="showScreen('calendar', event)">Calendar</button>
     <button class="nav-btn" onclick="showScreen('log', event)">History</button>
@@ -310,76 +310,73 @@
 <div id="toast"></div>
 
 <script type="module">
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, collection, addDoc, getDocs, query, orderBy, serverTimestamp, doc, deleteDoc, updateDoc, writeBatch } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-
-const app = initializeApp({
-  apiKey: "AIzaSyBBNNi5VjSTDmxjheaYdpzMqMZHfzPaHEo",
-  authDomain: "shamatimer-3c172.firebaseapp.com",
-  projectId: "shamatimer-3c172",
-  storageBucket: "shamatimer-3c172.firebasestorage.app",
-  messagingSenderId: "501940193954",
-  appId: "1:501940193954:web:9e92a0ca42ce0e39e6a5fb"
-});
-
-const auth = getAuth(app);
-const db = getFirestore(app);
+// С v1.40 данные — на своём сервере life.maxdzhabali.com/shama/api (apps/life-chronicle/personal_apps.py)
+// вместо Firebase; вход — общий с Life (cookie). Старый адрес на GitHub Pages переадресует сюда.
+// Интерфейс window._* прежний, поэтому остальной код приложения не менялся (поле firebaseDocId = id на сервере).
+if (/github\.io$/.test(location.hostname)) location.replace('https://life.maxdzhabali.com/shama/');
+const API = '/shama/api/';
+const LOGIN = '/chronicle/login?next=/shama/';
 
 let currentUser = null;
 let guestMode = false;
 
-onAuthStateChanged(auth, user => {
-  if (user) { currentUser = user; guestMode = false; showApp(user.email); }
-});
+async function call(method, path, body) {
+  const r = await fetch(API + path, {
+    method, credentials: 'same-origin', cache: 'no-store',
+    headers: body ? { 'Content-Type': 'application/json' } : {},
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (r.status === 401) { location.href = LOGIN; throw new Error('нужен вход'); }
+  if (!r.ok) throw new Error('сервер: ' + r.status);
+  return r.json();
+}
 
-window._handleAuth = async (isLogin, email, password) => {
-  if (isLogin) return signInWithEmailAndPassword(auth, email, password);
-  return createUserWithEmailAndPassword(auth, email, password);
-};
+// вход: cookie Life; без сети — последний известный пользователь (сессии копятся локально и дошлются потом)
+(async () => {
+  try {
+    const u = await call('GET', 'me');
+    currentUser = u; guestMode = false;
+    try { localStorage.setItem('life_user', JSON.stringify(u)); } catch (e) {}
+    showApp(u.email);
+  } catch (e) {
+    let c = null;
+    try { c = JSON.parse(localStorage.getItem('life_user') || 'null'); } catch (_) {}
+    if (c) { currentUser = c; showApp(c.email); }
+  }
+})();
 
-window._signOut = async () => { await signOut(auth); currentUser = null; };
+window._handleAuth = async () => { location.href = LOGIN; return new Promise(() => {}); };
+window._signOut = async () => { try { localStorage.removeItem('life_user'); } catch (e) {} currentUser = null; location.href = LOGIN; };
 window._getUser = () => currentUser;
 window._isGuest = () => guestMode;
 
 window._saveSession = async (session) => {
   if (guestMode || !currentUser) return null;
-  const col = collection(db, 'users', currentUser.uid, 'sessions');
-  const ref = await addDoc(col, { ...session, createdAt: serverTimestamp() });
-  return ref.id;
+  return (await call('POST', 'sessions', session)).id;
 };
 
 window._deleteSession = async (fid) => {
   if (guestMode || !currentUser || !fid) return;
-  await deleteDoc(doc(db, 'users', currentUser.uid, 'sessions', fid));
+  await call('DELETE', 'sessions/' + encodeURIComponent(fid));
 };
 
 window._loadSessions = async () => {
   if (guestMode || !currentUser) return null;
-  const col = collection(db, 'users', currentUser.uid, 'sessions');
-  const snap = await getDocs(query(col, orderBy('createdAt', 'desc')));
-  return snap.docs.map(d => ({ ...d.data(), firebaseDocId: d.id }));
+  return await call('GET', 'sessions');
 };
 
 window._updateSession = async (fid, fields) => {
   if (guestMode || !currentUser || !fid) return;
-  await updateDoc(doc(db, 'users', currentUser.uid, 'sessions', fid), fields);
+  await call('PATCH', 'sessions/' + encodeURIComponent(fid), fields);
 };
 
-// Bulk import: deterministic doc id (passed as firebaseDocId) so re-import overwrites, never duplicates.
+// Bulk import: заданный id (firebaseDocId) — повторный импорт перезаписывает, а не дублирует.
 window._importBatch = async (sessions) => {
   if (guestMode || !currentUser || !sessions.length) return 0;
-  const col = collection(db, 'users', currentUser.uid, 'sessions');
   let written = 0;
   for (let i = 0; i < sessions.length; i += 400) {
     const chunk = sessions.slice(i, i + 400);
-    const batch = writeBatch(db);
-    for (const s of chunk) {
-      const { firebaseDocId, ...data } = s;
-      batch.set(doc(col, firebaseDocId), { ...data, createdAt: serverTimestamp() });
-    }
-    await batch.commit();
-    written += chunk.length;
+    written += (await call('POST', 'batch', chunk)).written;
     if (window._importProgress) window._importProgress(written, sessions.length);
   }
   return written;
@@ -390,7 +387,7 @@ window._setUser = (u) => { currentUser = u; };
 
 function showApp(email) {
   document.getElementById('auth-screen').classList.add('hidden');
-  const label = guestMode ? 'guest' : email.split('@')[0];
+  const label = guestMode ? 'guest' : (email || 'max').split('@')[0];
   document.getElementById('nav-user').textContent = label;
   if (window._syncPending) window._syncPending();
 }
@@ -1037,7 +1034,7 @@ async function exportAll() {
   const ids = new Set(cloud.map(s => s.firebaseDocId));
   const localOnly = loadLocal().filter(s => s && !(s.firebaseDocId && ids.has(s.firebaseDocId)));
   const user = window._getUser && window._getUser();
-  const out = { app: 'shamatimer', version: 'v1.35', exported_at: new Date().toISOString(), uid: user ? user.uid : null,
+  const out = { app: 'shamatimer', version: 'v1.40', exported_at: new Date().toISOString(), uid: user ? user.uid : null,
                 sessions: cloud, local_only: localOnly };
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(out)], { type: 'application/json' }));
