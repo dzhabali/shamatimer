@@ -199,7 +199,7 @@
 <!-- APP -->
 <div id="app">
   <nav>
-    <span class="nav-ver">v1.34</span>
+    <span class="nav-ver">v1.35</span>
     <button class="nav-btn active" onclick="showScreen('timer', event)">Timer</button>
     <button class="nav-btn" onclick="showScreen('calendar', event)">Calendar</button>
     <button class="nav-btn" onclick="showScreen('log', event)">History</button>
@@ -258,6 +258,7 @@
       <div class="log-title">History</div>
       <div class="log-header-right">
         <div class="log-stats" id="log-stats"></div>
+        <button class="log-add" onclick="exportAll()" aria-label="Export all sessions" title="Полная копия всех сессий (JSON) — для переезда на свой сервер">⤒</button>
         <button class="log-add" onclick="openImport()" aria-label="Import sessions" title="Import history">⤓</button>
         <button class="log-add" onclick="openAddSession()" aria-label="Add session">+</button>
       </div>
@@ -1026,6 +1027,25 @@ async function runImport() {
   if (document.getElementById('screen-calendar').classList.contains('active')) renderCalendar();
 }
 window.openImport=openImport;
+
+// Полная копия всех сессий: облако (Firestore) + локальные, которых нет в облаке → JSON-файл.
+// Для переезда с Firebase на свой сервер (life.maxdzhabali.com/shama) — ничего не теряется.
+async function exportAll() {
+  let cloud = [];
+  try { cloud = (await window._loadSessions()) || []; } catch (e) { showToast('Облако недоступно: ' + e.message); return; }
+  cloud = cloud.map(s => { const o = { ...s }; if (o.createdAt && o.createdAt.toDate) o.createdAt = o.createdAt.toDate().toISOString(); return o; });
+  const ids = new Set(cloud.map(s => s.firebaseDocId));
+  const localOnly = loadLocal().filter(s => s && !(s.firebaseDocId && ids.has(s.firebaseDocId)));
+  const user = window._getUser && window._getUser();
+  const out = { app: 'shamatimer', version: 'v1.35', exported_at: new Date().toISOString(), uid: user ? user.uid : null,
+                sessions: cloud, local_only: localOnly };
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(out)], { type: 'application/json' }));
+  a.download = 'shamatimer-export-' + new Date().toISOString().slice(0, 10) + '.json';
+  a.click();
+  showToast('Скачано сессий: ' + cloud.length + (localOnly.length ? ' + только на устройстве: ' + localOnly.length : ''));
+}
+window.exportAll=exportAll;
 window.closeImport=closeImport;
 window.runImport=runImport;
 
