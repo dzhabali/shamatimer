@@ -1,14 +1,19 @@
 #!/bin/bash
 # Сборка и загрузка ShamaTimer в App Store Connect (TestFlight).
-#   ASC_KEY_ID=XXXX ASC_ISSUER_ID=yyyy-... [DEVELOPMENT_TEAM=ABCDE12345] tools/upload.sh
-# Ключ: ~/.appstoreconnect/AuthKey_$ASC_KEY_ID.p8
+#   tools/upload.sh            (на Mac mini; ключ и подпись — в ~/.appstoreconnect, см. README)
+# Ключ API: ~/.appstoreconnect/AuthKey_$ASC_KEY_ID.p8. Подпись ручная: сертификат Apple Distribution
+# в отдельной связке shama-build.keychain (пароль ~/.appstoreconnect/signing/keychain-pass),
+# профиль «ShamaTimer App Store» (tools/asc.py create-profile). Устройства в аккаунте не нужны.
 # Номер сборки (CURRENT_PROJECT_VERSION в project.yml) увеличивается на 1 перед каждой загрузкой.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-: "${ASC_KEY_ID:?нужен ASC_KEY_ID}"
-: "${ASC_ISSUER_ID:?нужен ASC_ISSUER_ID}"
+ASC_KEY_ID="${ASC_KEY_ID:-GTFY4P5UPP}"
+ASC_ISSUER_ID="${ASC_ISSUER_ID:-74224bd7-bbf9-4a2f-a400-0ed839c272bb}"
+export PATH="/opt/homebrew/bin:$PATH"
+KC="$HOME/Library/Keychains/shama-build.keychain-db"
+security unlock-keychain -p "$(cat "$HOME/.appstoreconnect/signing/keychain-pass")" "$KC"
 KEY_PATH="$HOME/.appstoreconnect/AuthKey_${ASC_KEY_ID}.p8"
 [ -f "$KEY_PATH" ] || { echo "нет ключа $KEY_PATH" >&2; exit 1; }
 
@@ -26,8 +31,8 @@ AUTH=(-allowProvisioningUpdates
       -authenticationKeyPath "$KEY_PATH"
       -authenticationKeyID "$ASC_KEY_ID"
       -authenticationKeyIssuerID "$ASC_ISSUER_ID")
-TEAM=()
-[ -n "${DEVELOPMENT_TEAM:-}" ] && TEAM=(DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM")
+SIGN=(CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="Apple Distribution"
+      PROVISIONING_PROFILE_SPECIFIER="ShamaTimer App Store" OTHER_CODE_SIGN_FLAGS="--keychain $KC")
 
 ARCHIVE="build/ShamaTimer.xcarchive"
 rm -rf "$ARCHIVE" build/export
@@ -35,7 +40,7 @@ rm -rf "$ARCHIVE" build/export
 # 3. archive
 xcodebuild -project ShamaTimer.xcodeproj -scheme ShamaTimer -configuration Release \
   -destination 'generic/platform=iOS' -archivePath "$ARCHIVE" \
-  "${AUTH[@]}" ${TEAM[@]+"${TEAM[@]}"} archive
+  "${SIGN[@]}" archive
 
 # 4. export + upload
 xcodebuild -exportArchive -archivePath "$ARCHIVE" \
