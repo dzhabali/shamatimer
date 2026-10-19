@@ -4,8 +4,9 @@
 Ключ — ~/.appstoreconnect/AuthKey_<KEY_ID>.p8 (в репо не класть: репо публичное).
   python3 asc.py get /v1/bundleIds
   python3 asc.py setup-bundle           # bundle id + HealthKit + Time Sensitive
+  python3 asc.py setup-bundle com.maxdzhabali.vajra Vajra APP_GROUPS   # любой другой bundle id
   python3 asc.py create-cert <csr.pem>  # Apple Distribution → печатает base64 сертификата
-  python3 asc.py create-profile <certId>  # IOS_APP_STORE → печатает base64 профиля
+  python3 asc.py create-profile <certId> [bundleId "Profile name"]  # IOS_APP_STORE → uuid + base64
 Нужны PyJWT + cryptography.
 """
 import json
@@ -44,24 +45,24 @@ def call(method, path, body=None):
         return e.code, json.loads(raw) if raw else {}
 
 
-def bundle_id():
-    st, js = call('GET', '/v1/bundleIds?filter[identifier]=%s&limit=5' % BUNDLE)
+def bundle_id(ident=BUNDLE):
+    st, js = call('GET', '/v1/bundleIds?filter[identifier]=%s&limit=5' % ident)
     for b in js.get('data', []):
-        if b['attributes']['identifier'] == BUNDLE:
+        if b['attributes']['identifier'] == ident:
             return b['id']
     return None
 
 
-def setup_bundle():
-    bid = bundle_id()
+def setup_bundle(ident=BUNDLE, name='ShamaTimer', caps=('HEALTHKIT', 'USERNOTIFICATIONS_TIMESENSITIVE')):
+    bid = bundle_id(ident)
     if not bid:
         st, js = call('POST', '/v1/bundleIds', {'data': {'type': 'bundleIds', 'attributes': {
-            'identifier': BUNDLE, 'name': 'ShamaTimer', 'platform': 'IOS'}}})
+            'identifier': ident, 'name': name, 'platform': 'IOS'}}})
         print('create bundleId', st, json.dumps(js)[:300])
         bid = js['data']['id']
     st, js = call('GET', '/v1/bundleIds/%s/bundleIdCapabilities' % bid)
     have = {c['attributes']['capabilityType'] for c in js.get('data', [])}
-    for cap in ('HEALTHKIT', 'USERNOTIFICATIONS_TIMESENSITIVE'):
+    for cap in caps:
         if cap in have:
             continue
         st, js = call('POST', '/v1/bundleIdCapabilities', {'data': {
@@ -81,13 +82,13 @@ def create_cert(csr_path):
     print(js['data']['id'], a['certificateContent'])
 
 
-def create_profile(cert_id):
-    bid = bundle_id()
-    st, js = call('GET', '/v1/profiles?filter[name]=%s' % urllib.request.quote(PROFILE_NAME))
+def create_profile(cert_id, ident=BUNDLE, profile_name=PROFILE_NAME):
+    bid = bundle_id(ident)
+    st, js = call('GET', '/v1/profiles?filter[name]=%s' % urllib.request.quote(profile_name))
     for p in js.get('data', []):
         call('DELETE', '/v1/profiles/' + p['id'])          # пересоздать с текущим сертификатом
     st, js = call('POST', '/v1/profiles', {'data': {'type': 'profiles', 'attributes': {
-        'name': PROFILE_NAME, 'profileType': 'IOS_APP_STORE'}, 'relationships': {
+        'name': profile_name, 'profileType': 'IOS_APP_STORE'}, 'relationships': {
         'bundleId': {'data': {'type': 'bundleIds', 'id': bid}},
         'certificates': {'data': [{'type': 'certificates', 'id': cert_id}]}}}})
     if st >= 300:
@@ -101,9 +102,9 @@ if __name__ == '__main__':
     if cmd == 'get':
         st, js = call('GET', sys.argv[2])
         print(st, json.dumps(js, indent=1, ensure_ascii=False)[:4000])
-    elif cmd == 'setup-bundle':
-        setup_bundle()
+    elif cmd == 'setup-bundle':        # [identifier name CAP...]
+        setup_bundle(*([sys.argv[2], sys.argv[3], sys.argv[4:]] if len(sys.argv) > 3 else []))
     elif cmd == 'create-cert':
         create_cert(sys.argv[2])
-    elif cmd == 'create-profile':
-        create_profile(sys.argv[2])
+    elif cmd == 'create-profile':      # certId [identifier "profile name"]
+        create_profile(*sys.argv[2:5])
