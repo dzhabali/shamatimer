@@ -12,6 +12,7 @@ final class AppEnvironment: ObservableObject {
     let bells: BellPlayer
     let notifier: EndNotifier
     let health: HealthStore
+    let healthExport: HealthExporter
 
     private var launched = false
 
@@ -21,6 +22,7 @@ final class AppEnvironment: ObservableObject {
         auth = AuthManager()
         sync = SyncEngine(backend: LifeServerBackend(), context: context)
         health = HealthStore()
+        healthExport = HealthExporter.shared
         store = SessionStore(context: context, sync: sync, health: health)
         bells = BellPlayer()
         notifier = EndNotifier()
@@ -31,9 +33,11 @@ final class AppEnvironment: ObservableObject {
         sync.onUnauthorized = { auth.handleUnauthorized() }
         sync.onSuccess = { auth.markOnline() }
         let health = self.health
-        timer.onStart = { health.requestAuthorizationIfNeeded() }
+        timer.onStart = { health.requestOnFirstUse() }
         let store = self.store
         timer.onFinish = { store.record($0) }
+        let healthExport = self.healthExport
+        health.onAuthorizationFinished = { healthExport.authorizationFinished() }
     }
 
     func launch() async {
@@ -42,12 +46,14 @@ final class AppEnvironment: ObservableObject {
         timer.restore()
         await auth.check()
         await sync.sync()
+        healthExport.kick()
     }
 
     func becameActive() {
         timer.becameActive()
         guard launched else { return }
         sync.kick()
+        healthExport.kick()
     }
 
     func signedIn() {

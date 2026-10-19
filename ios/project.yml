@@ -37,6 +37,7 @@ targets:
       properties:
         com.apple.developer.healthkit: true
         com.apple.developer.healthkit.access: []
+        com.apple.developer.healthkit.background-delivery: true
         com.apple.developer.usernotifications.time-sensitive: true
     info:
       path: ShamaTimer/Info.plist
@@ -56,7 +57,7 @@ targets:
           UIApplicationSupportsMultipleScenes: false
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         NSHealthUpdateUsageDescription: Shama saves your meditation sessions to Apple Health as Mindful Minutes.
-        NSHealthShareUsageDescription: Shama only writes Mindful Minutes and does not read your health data.
+        NSHealthShareUsageDescription: Shama sends your daily Health summaries to your private Life journal.
     scheme:
       testTargets:
         - ShamaTimerTests

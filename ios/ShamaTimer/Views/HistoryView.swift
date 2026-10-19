@@ -4,6 +4,7 @@ import SwiftData
 struct HistoryView: View {
     @EnvironmentObject private var sync: SyncEngine
     @EnvironmentObject private var env: AppEnvironment
+    @EnvironmentObject private var healthExport: HealthExporter
     @Query(filter: #Predicate<Session> { $0.pendingDelete == false },
            sort: \Session.date, order: .reverse)
     private var sessions: [Session]
@@ -24,7 +25,23 @@ struct HistoryView: View {
                     .tracking(0.6)
                     .foregroundStyle(Theme.text3)
                     .frame(minHeight: 14, alignment: .leading)
+                    .padding(.bottom, healthText.isEmpty ? 16 : 4)
+                if !healthText.isEmpty {
+                    HStack(spacing: 10) {
+                        Text(healthText)
+                            .font(Theme.ui(10))
+                            .tracking(0.6)
+                            .foregroundStyle(Theme.text3)
+                        if healthExport.status == .noAccess {
+                            Button("Connect Health") { env.health.requestAuthorizationIfNeeded() }
+                                .font(Theme.ui(10))
+                                .tracking(0.6)
+                                .foregroundStyle(Theme.accent)
+                                .buttonStyle(.plain)
+                        }
+                    }
                     .padding(.bottom, 16)
+                }
                 if sessions.isEmpty {
                     empty
                 } else {
@@ -119,6 +136,14 @@ struct HistoryView: View {
         .foregroundStyle(Theme.text3)
         .frame(maxWidth: .infinity)
         .padding(.vertical, 60)
+    }
+
+    private var healthText: String {
+        switch healthExport.status {
+        case .unknown, .unavailable: return ""
+        case .noAccess: return "Health: no access"
+        case .sent(let d): return "Health → Life: " + d.formatted(date: .abbreviated, time: .shortened)
+        }
     }
 
     private var syncText: String {

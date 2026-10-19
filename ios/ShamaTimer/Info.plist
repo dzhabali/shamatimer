@@ -25,7 +25,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSHealthShareUsageDescription</key>
-	<string>Shama only writes Mindful Minutes and does not read your health data.</string>
+	<string>Shama sends your daily Health summaries to your private Life journal.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Shama saves your meditation sessions to Apple Health as Mindful Minutes.</string>
 	<key>UIAppFonts</key>
