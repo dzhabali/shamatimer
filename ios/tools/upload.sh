@@ -43,7 +43,8 @@ xcodebuild -project ShamaTimer.xcodeproj -scheme ShamaTimer -configuration Relea
   "${SIGN[@]}" archive
 
 # 4. export + upload
-xcodebuild -exportArchive -archivePath "$ARCHIVE" \
+# PATH без Homebrew: системный rsync запускает «rsync» по PATH, а brew-rsync 3.x не знает -E → «Copy failed»
+env PATH=/usr/bin:/bin:/usr/sbin:/sbin xcodebuild -exportArchive -archivePath "$ARCHIVE" \
   -exportOptionsPlist tools/ExportOptions.plist -exportPath build/export \
   "${AUTH[@]}"
 
