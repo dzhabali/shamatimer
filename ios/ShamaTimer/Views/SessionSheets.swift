@@ -86,25 +86,46 @@ struct AddSessionSheet: View {
     @State private var error = ""
 
     var body: some View {
+        // Шапка вне прокрутки: с открытой цифровой клавиатурой календарь + поле не влезают,
+        // и без ScrollView SwiftUI срезал верх вместе с кнопкой Save.
         VStack(alignment: .leading, spacing: 16) {
             sheetHeader(title: "Add session", cancel: "Cancel", confirm: "Save", action: save)
-            CapsLabel("Date")
-            DatePicker("Date", selection: $day, in: ...Date(), displayedComponents: .date)
-                .labelsHidden()
-                .datePickerStyle(.graphical)
-                .tint(Theme.accent)
-            CapsLabel("Minutes")
-            TextField("", text: $minutes, prompt: Text("e.g. 45").foregroundColor(Theme.text3))
-                .font(Theme.ui(14))
-                .foregroundStyle(Theme.text)
-                .padding(.horizontal, 16).padding(.vertical, 12)
-                .card(radius: 8)
-                #if os(iOS)
-                .keyboardType(.numberPad)
-                #endif
-            Text(error).font(Theme.ui(12)).foregroundStyle(Theme.danger)
-            Spacer()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    CapsLabel("Date")
+                    DatePicker("Date", selection: $day, in: ...Date(), displayedComponents: .date)
+                        .labelsHidden()
+                        .datePickerStyle(.graphical)
+                        .tint(Theme.accent)
+                    CapsLabel("Minutes")
+                    TextField("", text: $minutes, prompt: Text("e.g. 45").foregroundColor(Theme.text3))
+                        .font(Theme.ui(14))
+                        .foregroundStyle(Theme.text)
+                        .padding(.horizontal, 16).padding(.vertical, 12)
+                        .card(radius: 8)
+                        #if os(iOS)
+                        .keyboardType(.numberPad)
+                        #endif
+                    Button(action: save) {
+                        CapsLabel("Add session", size: 11, color: Theme.accent2, tracking: 0.1)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.accent2.opacity(0.4), lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                    Text(error).font(Theme.ui(12)).foregroundStyle(Theme.danger)
+                }
+            }
+            .scrollDismissesKeyboard(.interactively)
         }
+        #if os(iOS)
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Save", action: save).tint(Theme.accent)
+            }
+        }
+        #endif
         .padding(24)
         .background(Theme.bg.ignoresSafeArea())
         .presentationDetents([.large])
