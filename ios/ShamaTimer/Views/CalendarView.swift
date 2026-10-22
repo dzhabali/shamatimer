@@ -9,8 +9,14 @@ struct CalendarView: View {
     @State private var month = Calendar.current.component(.month, from: Date())
 
     private let weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-    private var columns: [GridItem] {
-        Array(repeating: GridItem(.flexible(), spacing: 4), count: 7) + [GridItem(.fixed(28), spacing: 4)]
+
+    /// Строка календаря: 7 равных колонок Пн…Вс + узкая колонка недели (28 pt).
+    private func row<Days: View, Trailing: View>(@ViewBuilder _ days: () -> Days,
+                                                 @ViewBuilder trailing: () -> Trailing) -> some View {
+        HStack(spacing: 4) {
+            days()
+            trailing().frame(width: 28)
+        }
     }
 
     var body: some View {
@@ -39,22 +45,29 @@ struct CalendarView: View {
                 .card()
                 .padding(.bottom, 18)
 
-                LazyVGrid(columns: columns, spacing: 4) {
-                    ForEach(weekdays, id: \.self) { CapsLabel($0, size: 9, tracking: 0.12) }
+                row {
+                    ForEach(weekdays, id: \.self) { CapsLabel($0, size: 9, tracking: 0.12).frame(maxWidth: .infinity) }
+                } trailing: {
                     CapsLabel("wk", size: 9, tracking: 0.12)
                 }
                 .padding(.bottom, 6)
 
-                LazyVGrid(columns: columns, spacing: 4) {
+                // Обычные строки, не LazyVGrid: там id ячеек 0…6 повторялись в каждой неделе,
+                // и сетка рисовала только первую неделю.
+                VStack(spacing: 4) {
                     ForEach(Array(grid.weeks.enumerated()), id: \.offset) { _, week in
-                        ForEach(0..<7, id: \.self) { i in
-                            DayCell(cell: week.cells[i])
+                        row {
+                            ForEach(0..<7, id: \.self) { i in
+                                DayCell(cell: week.cells[i]).frame(maxWidth: .infinity)
+                            }
+                        } trailing: {
+                            Text(week.average > 0 ? "\(week.average)" : "—")
+                                .font(Theme.serif(13))
+                                .foregroundStyle(Theme.weekAvg)
                         }
-                        Text(week.average > 0 ? "\(week.average)" : "—")
-                            .font(Theme.serif(13))
-                            .foregroundStyle(Theme.weekAvg)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .overlay(alignment: .leading) { Rectangle().fill(Theme.border).frame(width: 1) }
+                        .overlay(alignment: .trailing) {
+                            Rectangle().fill(Theme.border).frame(width: 1).offset(x: -28)
+                        }
                     }
                 }
             }
