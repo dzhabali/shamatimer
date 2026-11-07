@@ -7,6 +7,7 @@
   python3 asc.py setup-bundle com.maxdzhabali.vajra Vajra APP_GROUPS   # любой другой bundle id
   python3 asc.py create-cert <csr.pem>  # Apple Distribution → печатает base64 сертификата
   python3 asc.py create-profile <certId> [bundleId "Profile name"]  # IOS_APP_STORE → uuid + base64
+  python3 asc.py whats-new <bundleId> <build> "текст"   # «Что нового» билда в TestFlight (ждёт обработку до 60 мин)
 Нужны PyJWT + cryptography.
 """
 import json
@@ -97,6 +98,35 @@ def create_profile(cert_id, ident=BUNDLE, profile_name=PROFILE_NAME):
     print(a['uuid'], a['profileContent'])
 
 
+def whats_new(ident, build, text, wait_min=60):
+    """Текст «Что нового» (What to Test) у билда в TestFlight. Билд появляется в API после обработки Apple —
+    ждём до wait_min минут. Язык — существующая локализация билда или основной язык приложения."""
+    st, js = call('GET', '/v1/apps?filter[bundleId]=%s' % ident)
+    app = js['data'][0]
+    bid = None
+    for _ in range(wait_min * 2):
+        st, js = call('GET', '/v1/builds?filter[app]=%s&filter[version]=%s&limit=1' % (app['id'], build))
+        if js.get('data'):
+            bid = js['data'][0]['id']
+            break
+        time.sleep(30)
+    if not bid:
+        sys.exit('билд %s не появился за %d мин' % (build, wait_min))
+    st, js = call('GET', '/v1/builds/%s/betaBuildLocalizations' % bid)
+    locs = js.get('data', [])
+    if locs:
+        for l in locs:
+            st, r = call('PATCH', '/v1/betaBuildLocalizations/' + l['id'], {'data': {
+                'type': 'betaBuildLocalizations', 'id': l['id'], 'attributes': {'whatsNew': text}}})
+            print('whatsNew', l['attributes']['locale'], st)
+    else:
+        loc = app['attributes'].get('primaryLocale') or 'en-US'
+        st, r = call('POST', '/v1/betaBuildLocalizations', {'data': {
+            'type': 'betaBuildLocalizations', 'attributes': {'locale': loc, 'whatsNew': text},
+            'relationships': {'build': {'data': {'type': 'builds', 'id': bid}}}}})
+        print('whatsNew', loc, st, '' if st < 300 else json.dumps(r)[:300])
+
+
 if __name__ == '__main__':
     cmd = sys.argv[1]
     if cmd == 'get':
@@ -108,3 +138,5 @@ if __name__ == '__main__':
         create_cert(sys.argv[2])
     elif cmd == 'create-profile':      # certId [identifier "profile name"]
         create_profile(*sys.argv[2:5])
+    elif cmd == 'whats-new':           # identifier build "text"
+        whats_new(sys.argv[2], sys.argv[3], sys.argv[4])
