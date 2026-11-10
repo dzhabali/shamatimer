@@ -157,14 +157,27 @@ final class SyncEngine: ObservableObject {
     // MARK: фон
 
     #if os(iOS)
+    private final class TaskBox { var id: UIBackgroundTaskIdentifier = .invalid }
+    private var backgroundBox: TaskBox?
+
+    /// Время вышло — задачу закрываем сами. До 10.11.2026 обработчик был пустым: iOS в таком случае завершает
+    /// приложение целиком. Синк на плохой сети, телефон заблокирован для медитации — через полминуты таймер
+    /// и колокола умирали вместе с приложением. Недосланное уйдёт при следующем синке.
     private func beginBackground() -> UIBackgroundTaskIdentifier {
-        UIApplication.shared.beginBackgroundTask(withName: "shama.sync") {
-            // время вышло — система сама завершит; ответ дойдёт при следующем синке
+        let box = TaskBox()
+        box.id = UIApplication.shared.beginBackgroundTask(withName: "shama.sync") {
+            if box.id != .invalid { UIApplication.shared.endBackgroundTask(box.id) }
+            box.id = .invalid
         }
+        backgroundBox = box
+        return box.id
     }
 
     private func endBackground(_ id: UIBackgroundTaskIdentifier) {
-        if id != .invalid { UIApplication.shared.endBackgroundTask(id) }
+        guard let box = backgroundBox, box.id == id, id != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(id)
+        box.id = .invalid
+        backgroundBox = nil
     }
     #else
     private func beginBackground() -> Int { 0 }
