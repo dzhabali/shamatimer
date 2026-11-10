@@ -83,15 +83,27 @@ def create_cert(csr_path):
     print(js['data']['id'], a['certificateContent'])
 
 
+def dist_certs():
+    """Все действующие сертификаты Apple Distribution аккаунта (у MacBook и у mini — свои)."""
+    st, js = call('GET', '/v1/certificates?filter[certificateType]=DISTRIBUTION&limit=50')
+    now = time.strftime('%Y-%m-%dT%H:%M:%S', time.gmtime())
+    return [c['id'] for c in js.get('data', []) if (c['attributes'].get('expirationDate') or '9') > now]
+
+
 def create_profile(cert_id, ident=BUNDLE, profile_name=PROFILE_NAME):
+    """Профиль App Store под ВСЕ действующие сертификаты Distribution, не только под cert_id. До 10.11.2026 профиль
+    пересоздавался с одним сертификатом: собрать приложение могла только та машина, чей он, — когда mini была
+    офлайн (24.10–07.11.2026), Shama, Ваджру, Drumsong и Lists нельзя было перезалить с MacBook.
+    Новый файл профиля нужно положить на обе машины (в обе папки профилей), старый с тем же именем — убрать."""
     bid = bundle_id(ident)
+    certs = [cert_id] + [c for c in dist_certs() if c != cert_id]
     st, js = call('GET', '/v1/profiles?filter[name]=%s' % urllib.request.quote(profile_name))
     for p in js.get('data', []):
-        call('DELETE', '/v1/profiles/' + p['id'])          # пересоздать с текущим сертификатом
+        call('DELETE', '/v1/profiles/' + p['id'])          # пересоздать с текущими сертификатами
     st, js = call('POST', '/v1/profiles', {'data': {'type': 'profiles', 'attributes': {
         'name': profile_name, 'profileType': 'IOS_APP_STORE'}, 'relationships': {
         'bundleId': {'data': {'type': 'bundleIds', 'id': bid}},
-        'certificates': {'data': [{'type': 'certificates', 'id': cert_id}]}}}})
+        'certificates': {'data': [{'type': 'certificates', 'id': c} for c in certs]}}}})
     if st >= 300:
         sys.exit('profile %s %s' % (st, json.dumps(js)[:500]))
     a = js['data']['attributes']
